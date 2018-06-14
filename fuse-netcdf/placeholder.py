@@ -16,7 +16,7 @@ from threading import Lock
 
 
 class NetCDFFUSE(Operations):
-"""Inherit from the base fusepy Operations class"""
+  """Inherit from the base fusepy Operations class"""
   def __init__(self, filerootdir):
     self.filerootdir = os.path.realpath(filerootdir)
     self.readwritelock = Lock()
@@ -38,7 +38,7 @@ class NetCDFFUSE(Operations):
         # handle this case better!
 
     def testNetCDF(self, path):
-      is os.path.isfile(path):
+      if os.path.isfile(path):
         try:
           # Also test for netCDF version here?
           self.dataset_handle = ncpy.Dataset(path, "r")
@@ -48,7 +48,7 @@ class NetCDFFUSE(Operations):
         return False
 
     def __del__(self):
-      if self.dataset_handle != None
+      if self.dataset_handle != None:
         try:
           self.dataset_handle.close()
         except:
@@ -85,14 +85,54 @@ class NetCDFFUSE(Operations):
   def acccess(self, path, mode):
     self.PotentialNetCDFFile(path).access(mode)
 
-  def read(self, path, size, offset, fh, self.readwritelock):
-    return 
+  def read(self, path, size, offset, fh):
+    return self.PotentialNetCDFFile(path).read(size, offset, fh, self.readwritelock)
 
+  def getattr(self, path, name):
+    return self.PotentialNetCDFFile(path).getattr()
+  
+  def getxattr(self, path, name):
+    return self.PotentialNetCDFFile(path).getxattr(name)
+
+  def listxattr(self, path):
+    return self.PotentialNetCDFFile(path).listxattr()
+
+  def readdir(self, path, fh):
+    return self.PotentialNetCDFFile(path).listdir()
+
+  def release(self, path, fh):
+    return self.PotentialNetCDFFile(path).close(fh)
+
+  def statfs(self, path):
+    # Need to think about this one some more...
+    raise NotImplementedError()
+
+  def open(self, path, flags):
+    return self.PotentialNetCDFFile(path).open(flags)
+
+	truncate = None
+	write = None
+	rename = None
+	symlink = None
+	setxattr = None
+	removexattr = None
+	link = None
+	mkdir = None
+	mknod = None
+	rmdir = None
+	unlink = None
+	chmod = None
+	chown = None
+	create = None
+	fsync = None
+	flush = None
+	utimens = os.utime
+	readlink = os.readlink
 
 
 """
 At the minute, the netCDF file has to be in a parent folder,
-but this can be changed in future
+but this can be changed in future, i.e. just point to a single .nc file
 """
 if __name__ == "__main__":
   if len(argv) != 3:
