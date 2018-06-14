@@ -31,6 +31,7 @@ class NetCDFFUSE(Operations):
       self.fullpath = path
       self.internalpath = "/"
       self.dataset_handle = None
+      self.dataset_file = None
       # Check that there is a netCDF file
       if os.path.lexists(path):
         self.testNetCDF(path)
@@ -44,6 +45,7 @@ class NetCDFFUSE(Operations):
         try:
           # Also test for netCDF version here?
           self.dataset_handle = ncpy.Dataset(path, "r")
+          self.dataset_file = path
           return True
         except:
           pass
