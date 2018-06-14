@@ -9,6 +9,7 @@ in user space using the fusepy and python-netcdf libraries
 """
 
 import os
+import sys
 import netCDF4 as ncpy
 
 from fuse import FUSE, FuseOSError, Operations, LoggingMixIn
@@ -29,6 +30,7 @@ class NetCDFFUSE(Operations):
       self.data_attrs = {}
       self.fullpath = path
       self.internalpath = "/"
+      self.dataset_handle = None
       # Check that there is a netCDF file
       if os.path.lexists(path):
         self.testNetCDF(path)
@@ -58,7 +60,7 @@ class NetCDFFUSE(Operations):
     def makeIntoDir(self, statdict):
       raise NotImplementedError()
 
-    def gettattr(self):
+    def getattr(self):
       raise NotImplementedError()
 
     def getxattr(self, name):
@@ -110,24 +112,24 @@ class NetCDFFUSE(Operations):
   def open(self, path, flags):
     return self.PotentialNetCDFFile(path).open(flags)
 
-	truncate = None
-	write = None
-	rename = None
-	symlink = None
-	setxattr = None
-	removexattr = None
-	link = None
-	mkdir = None
-	mknod = None
-	rmdir = None
-	unlink = None
-	chmod = None
-	chown = None
-	create = None
-	fsync = None
-	flush = None
-	utimens = os.utime
-	readlink = os.readlink
+  truncate = None
+  write = None
+  rename = None
+  symlink = None
+  setxattr = None
+  removexattr = None
+  link = None
+  mkdir = None
+  mknod = None
+  rmdir = None
+  unlink = None
+  chmod = None
+  chown = None
+  create = None
+  fsync = None
+  flush = None
+  utimens = os.utime
+  readlink = os.readlink
 
 
 """
@@ -135,9 +137,10 @@ At the minute, the netCDF file has to be in a parent folder,
 but this can be changed in future, i.e. just point to a single .nc file
 """
 if __name__ == "__main__":
-  if len(argv) != 3:
-    print("Usage: %s <netcdf file folder> <mountpoint>" % argv[0]
-    exit(1)
-  fuse = FUSE(NetCDFFUSE(argv[1]), argv[2])
+  if len(sys.argv) != 3:
+    print("Usage: %s <netcdf file folder> <mountpoint>" % sys.argv[0])
+    sys.exit(1)
+  #fuse = FUSE(NetCDFFUSE(sys.argv[1]), sys.argv[2])
+  fuse = FUSE(NetCDFFUSE(sys.argv[1]), sys.argv[2], foreground=True) # for debugging
 
 
