@@ -92,17 +92,27 @@ class NetCDFFUSE(Operations):
           
         return statdict
 
-        
-      
-
     def getxattr(self, name):
       raise NotImplementedError()
 
-    def listxattr(self):
-      raise NotImplementedError()
-
     def listdir(self):
-      raise NotImplementedError()
+      if self.dataset_handle == None:
+        return ['.', '..'] + [name.encode('utf-8') for name in os.listdir(self.fullpath)]
+      else:
+        items = self.dataset_handle[self.internalpath].items()
+        return ['.', '..'] + [item[0].encode('utf-8') for item in items]
+    
+    def listxattr(self):
+      if self.dataset_handle == None:
+        return []
+      xattrs = []
+      for i in self.dataset_handle[self.internalpath].attrs.keys():
+        xattrs.append("user."+i)
+      
+      if isinstance(self.dataset_handle[self.internalpath], ncpy.Dataset):
+        for i in self.data_attrs.keys():
+          xattrs.append(i)
+      return xattrs
 
     def access(self, mode):
       raise NotImplementedError()
