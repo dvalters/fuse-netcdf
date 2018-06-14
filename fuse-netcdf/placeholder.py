@@ -12,7 +12,7 @@ import os
 import sys
 import netCDF4 as ncpy
 
-from fuse import FUSE, FuseOSError, Operations, LoggingMixIn
+from fuse import FUSE, FuseOSError, Operations
 from threading import Lock
 
 
@@ -36,9 +36,15 @@ class NetCDFFUSE(Operations):
       if os.path.lexists(path):
         self.testNetCDF(path)
       else:
-        print("No File Found!")
-        exit(1)
-        # handle this case better!
+        components = path.split("/")
+        for i in range(len(components), 0, -1):
+          test = "/".join(components[:i])
+          if self.testNetCDF(test):
+            self.internalpath = "/".join(components[i-len(components):])
+            break
+
+        # handle this case better - I think it can be done better with 
+        # the os path methods
 
     def testNetCDF(self, path):
       if os.path.isfile(path):
@@ -63,7 +69,31 @@ class NetCDFFUSE(Operations):
       raise NotImplementedError()
 
     def getattr(self):
-      raise NotImplementedError()
+      """The getattr callback is in charge of reading the metadata of a given 
+      path, this callback is always called before any operation made on the
+      filesystem.
+      
+      Returns: a dictionary with keys identical to the stat C structure of
+        stat(2)."""
+      if self.dataset_file != None:
+        st = os.lstat(self.dataset_file)
+      else:
+        st = os.lstat(self.fullpath)
+        
+        statdict = dict((key, getattr(st, key)) for key in ('st_atime', 'st_ctime',
+                'st_gid', 'st_mode', 'st_mtime', 'st_nlink', 'st_size', 'st_uid'))
+        
+        if self.dataset_file != None:
+          if self.internalpath == "/":
+            statdict = self.makeIntoDir(statdict)
+          elif isinstance(self.dataset_handle[self.internalpath], ncpy.Dataset):
+            ob = self.dataset_handle[self.internalpath].value
+            statdict["st_size"] = ob.size * ob.itemsize
+          
+        return statdict
+
+        
+      
 
     def getxattr(self, name):
       raise NotImplementedError()
