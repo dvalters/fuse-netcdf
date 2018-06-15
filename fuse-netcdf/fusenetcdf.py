@@ -76,6 +76,7 @@ class NetCDFFUSE(Operations):
       
       Returns: a dictionary with keys identical to the stat C structure of
         stat(2)."""
+      import pdb; pdb.set_trace()
       if self.dataset_file != None:
         st = os.lstat(self.dataset_file)
       else:
@@ -100,20 +101,21 @@ class NetCDFFUSE(Operations):
       if self.dataset_handle == None:
         return ['.', '..'] + [name.encode('utf-8') for name in os.listdir(self.fullpath)]
       else:
+        print(self.dataset_handle, self.dataset_handle[self.internalpath])
         items = self.dataset_handle[self.internalpath].items()
         return ['.', '..'] + [item[0].encode('utf-8') for item in items]
     
-    def listxattr(self):
-      if self.dataset_handle == None:
-        return []
-      xattrs = []
-      for i in self.dataset_handle[self.internalpath].attrs.keys():
-        xattrs.append("user."+i)
-      
-      if isinstance(self.dataset_handle[self.internalpath], ncpy.Dataset):
-        for i in self.data_attrs.keys():
-          xattrs.append(i)
-      return xattrs
+#    def listxattr(self):
+#      if self.dataset_handle == None:
+#        return []
+#      xattrs = []
+#      for i in self.dataset_handle[self.internalpath].attrs.keys():
+#        xattrs.append("user."+i)
+#      
+#      if isinstance(self.dataset_handle[self.internalpath], ncpy.Dataset):
+#        for i in self.data_attrs.keys():
+#          xattrs.append(i)
+#      return xattrs
 
     def access(self, mode):
       path = self.fullpath
@@ -149,7 +151,7 @@ class NetCDFFUSE(Operations):
   def read(self, path, size, offset, fh):
     return self.PotentialNetCDFFile(path).read(size, offset, fh, self.readwritelock)
 
-  def getattr(self, path, name):
+  def getattr(self, path, fh=None):
     return self.PotentialNetCDFFile(path).getattr()
   
   def getxattr(self, path, name):
