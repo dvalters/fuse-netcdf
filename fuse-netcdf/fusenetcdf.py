@@ -14,6 +14,7 @@ import netCDF4 as ncpy
 
 from fuse import FUSE, FuseOSError, Operations
 from threading import Lock
+from errno import EACCES
 
 
 class NetCDFFUSE(Operations):
@@ -115,16 +116,32 @@ class NetCDFFUSE(Operations):
       return xattrs
 
     def access(self, mode):
-      raise NotImplementedError()
+      path = self.fullpath
+      if self.dataset_file != None:
+        path = self.dataset_file
+        # If we can execute it, we should be able to read it too
+        if mode ==  os.X_OK:
+          mode == os.R_OK
+      if not os.access(path, mode):
+        raise FuseOSError(EACCES)
+        
+    def read(self, size, offset, fh, lock):
+      if self.dataset_handle == None or self.internalpath == "/":
+        with lock:
+          os.lseek(fh, offset, 0)
+        return os.read(fh, size)
+      if isinstance(self.dataset_handle[self.internalpath], ncpy.Dataset):
+        return self.dataset_handle[self.internalpath].value.tostring()[offset:offset+size]
 
-    def read(self):
-      raise NotImplementedError()
+    def open(self, flags):
+      if self.dataset_handle == None or self.internalpath == "/":
+        return os.open(self.fullpath, flags)
+      return 0
 
-    def open(self):
-      raise NotImplementedError()
-
-    def close(self):
-      raise NotImplementedError()
+    def close(self, fh):
+      if self.dataset_handle == None or self.internalpath == "/":
+        return os.close(fh)
+      return 0
 
   def acccess(self, path, mode):
     self.PotentialNetCDFFile(path).access(mode)
@@ -182,7 +199,7 @@ if __name__ == "__main__":
   if len(sys.argv) != 3:
     print("Usage: %s <netcdf file folder> <mountpoint>" % sys.argv[0])
     sys.exit(1)
-  fuse = FUSE(NetCDFFUSE(sys.argv[1]), sys.argv[2])
-  #fuse = FUSE(NetCDFFUSE(sys.argv[1]), sys.argv[2], foreground=True) # for debugging
+  #fuse = FUSE(NetCDFFUSE(sys.argv[1]), sys.argv[2])
+  fuse = FUSE(NetCDFFUSE(sys.argv[1]), sys.argv[2], foreground=True) # for debugging
 
 
