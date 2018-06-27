@@ -26,3 +26,13 @@ Blogpost example: https://medium.com/the-python-corner/writing-a-fuse-filesystem
 
 Which is based on this example... https://github.com/skorokithakis/python-fuse-sample
 
+fusepy is not that well documented, but these resources have been useful (they mostly refer to the FUSE C-library)
+
+https://engineering.facile.it/blog/eng/write-filesystem-fuse/
+
+https://www.cs.hmc.edu/~geoff/classes/hmc.cs135.201001/homework/fuse/fuse_doc.html
+
+https://www.cs.nmsu.edu/~pfeiffer/fuse-tutorial/html/unclear.html
+
+http://www.maastaar.net/fuse/linux/filesystem/c/2016/05/21/writing-a-simple-filesystem-using-fuse/
+
