@@ -40,6 +40,7 @@ class NetCDFFUSE(Operations):
       self.dataset_handle = None
       self.dataset_file = None
       self.ncVars = None
+      
       # Check that there is a netCDF file
       if os.path.lexists(path):
         self.testNetCDF(path)
@@ -148,7 +149,7 @@ class NetCDFFUSE(Operations):
         # Return a list of netCDF variables
         return ['.', '..'] + [item.encode('utf-8') for item in self.ncVars]
       else:
-        return ['.', '..'] + ['foo']
+        return ['.', '..']
 #      else:
 #        items = self.dataset_handle[self.internalpath].items()
 #        return ['.', '..'] + [item[0].encode('utf-8')  for item in items]
