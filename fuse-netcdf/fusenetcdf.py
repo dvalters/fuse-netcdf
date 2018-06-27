@@ -126,6 +126,8 @@ class NetCDFFUSE(Operations):
             statdict["st_size"] = 0
           elif self.internalpath in self.ncVars:
             print "WE ARE AT VARIABLE: ", self.internalpath
+            statdict = self.makeIntoDir(statdict)
+            statdict["st_size"] = 0
             
         return statdict	
 
