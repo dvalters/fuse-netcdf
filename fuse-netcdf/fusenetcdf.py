@@ -39,6 +39,7 @@ class NetCDFFUSE(Operations):
       self.internalpath = "/"
       self.dataset_handle = None
       self.dataset_file = None
+      self.ncVars = None
       # Check that there is a netCDF file
       if os.path.lexists(path):
         self.testNetCDF(path)
@@ -60,6 +61,7 @@ class NetCDFFUSE(Operations):
           # Also test for netCDF version here?
           self.dataset_handle = ncpy.Dataset(path, "r")
           self.dataset_file = path
+          self.ncVars = self.getncVars(path)
           print path + " is netCDF"
           return True
         except exc as e:
@@ -104,7 +106,7 @@ class NetCDFFUSE(Operations):
         statdict = dict((key, getattr(st, key)) for key in ('st_atime', 'st_ctime',
                 'st_gid', 'st_mode', 'st_mtime', 'st_nlink', 'st_size', 'st_uid'))
         if self.dataset_file != None:
-          print "NEXUSHANDLE:  ", self.dataset_handle
+          #print "NEXUSHANDLE:  ", self.dataset_handle
           print "NEXUSFILE:    ", self.dataset_file
           print "INTERNALPATH: ", self.internalpath
           if self.internalpath == "/":
@@ -117,15 +119,14 @@ class NetCDFFUSE(Operations):
             #elif isinstance(self.dataset_handle[self.internalpath],h5py.Dataset):
             #	ob=self.dataset_handle[self.internalpath].value
             #	statdict["st_size"] = ob.size * ob.itemsize
-            #elif isinstance(self.dataset_handle[self.internalpath], ncpy.Dataset): 
-          elif isinstance(self.dataset_handle, ncpy.Dataset):
-            # It is a netcdf dataset!!!
-            # So we are going to render it as a directory
-            print "getattr is dealing with a netCDF File"
+            #elif isinstance(self.dataset_handle[self.internalpath], ncpy.Dataset):
+          elif self.internalpath == "":
+            print "WE ARE AT THE TOP: ", self.internalpath
             statdict = self.makeIntoDir(statdict)
             statdict["st_size"] = 0
-              #statdict["st_size"] = ob.size * ob.itemsize
-              #print statdict["st_size"]
+          elif self.internalpath in self.ncVars:
+            print "WE ARE AT VARIABLE: ", self.internalpath
+            
         return statdict	
 
     def getxattr(self, name):
@@ -141,13 +142,14 @@ class NetCDFFUSE(Operations):
       """
       if self.dataset_handle == None:
         return ['.', '..'] + [name.encode('utf-8') for name in os.listdir(self.fullpath)]
-      elif isinstance(self.dataset_handle, ncpy.Dataset):
+      elif self.internalpath == "":
         # Return a list of netCDF variables
-        netCDFvars = self.getncVars(self.dataset_file)
-        return ['.', '..'] + [item.encode('utf-8') for item in netCDFvars]
+        return ['.', '..'] + [item.encode('utf-8') for item in self.ncVars]
       else:
-        items = self.dataset_handle[self.internalpath].items()
-        return ['.', '..'] + [item[0].encode('utf-8')  for item in items]
+        return ['.', '..'] + ['foo']
+#      else:
+#        items = self.dataset_handle[self.internalpath].items()
+#        return ['.', '..'] + [item[0].encode('utf-8')  for item in items]
     
     def listxattr(self):
       raise NotImplementedError()
