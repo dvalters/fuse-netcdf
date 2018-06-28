@@ -1,8 +1,9 @@
 # fuse-netcdf
-ESoWC project for the netcdf-fusepy utility
+ESoWC project for the netcdf-fusepy utility. (Work in progress)
 
-See the wiki for proposal, workplan, other notes etc. https://github.com/dvalters/fuse-netcdf/wiki
+_See the wiki for proposal, workplan, other notes etc. https://github.com/dvalters/fuse-netcdf/wiki_
 
+This readme contains a brief overview of how to use fuse-netcdf and some example output.
 
 ## Usage
 
@@ -11,10 +12,11 @@ This is currently a work in progress, but the basic usage at the testing stage i
 ```bash
 python fusenetcdf.py <NetCDF_File.nc> <mountpoint>
 ```
+ - The `fusenetcdf.py` is in the `fusenetcdf` directory.
 
-The `<NetCDF_File.nc>` should be the path to your netcdf file. 
+ - The `<NetCDF_File.nc>` should be the path to your netcdf file. 
 
-You should create an empty folder which will be your mountpoint at `<mountpoint>`
+ - You should create an empty folder which will be your mountpoint at `<mountpoint>`
 
 ### Example usage:
 
@@ -28,7 +30,7 @@ From the linux terminal:
 
 Your netCDF file should now be mounted at `/trial/mntpoint` (Or wherever you created the mountpoint folder).
 
-#### What does the mounted netCDF file look like (note: this is subject to change during development)
+#### What does the mounted netCDF file look like? (note: this is subject to change during development)
 
 If we run the `tree` command in the top level directory, we get a structure like this:
 
