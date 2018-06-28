@@ -131,11 +131,10 @@ class NetCDFFUSE(Operations):
             print "WE ARE AT VARIABLE: ", self.internalpath
             statdict = self.makeIntoDir(statdict)
             statdict["st_size"] = 4096
-          elif "Data_repr" in self.internalpath:
+          elif "DATA_REPR" in self.internalpath:
             print "WE ARE INSIDE A VARIABLE DIR: ", self.internalpath
             statdict["st_size"] = 0
-          
-            
+ 
         return statdict	
 
     def getxattr(self, name):
@@ -166,7 +165,7 @@ class NetCDFFUSE(Operations):
         print "GETTINGS ATTRIBUTES..."
         local_attrs = self.getncAttrs(self.internalpath)
         print "ATTRS: ", local_attrs
-        return ['.', '..'] + local_attrs + ["Data_repr"]
+        return ['.', '..'] + local_attrs + ["DATA_REPR"]
       else:
         return ['.', '..'] 
 #      else:
