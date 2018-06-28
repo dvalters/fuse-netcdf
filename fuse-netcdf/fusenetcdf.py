@@ -83,7 +83,7 @@ class NetCDFFUSE(Operations):
       """Update the statdict if the item in the VFS should be
       presented as a directory
       """
-      print("Making a statdict to create a folder structure!"
+      print("Making a statdict to create a folder structure!")
       statdict["st_mode"] = statdict["st_mode"] ^ 0100000 | 0040000
       for i in [ [ 0400 , 0100 ] , [ 040 , 010 ] , [ 04, 01 ] ]:
         if (statdict["st_mode"] & i[0]) != 0:
