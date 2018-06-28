@@ -18,6 +18,12 @@ python fusenetcdf.py <NetCDF_File.nc> <mountpoint>
 
  - You should create an empty folder which will be your mountpoint at `<mountpoint>`
 
+To unmount the netCDF directory, use:
+
+```
+fusermount -u mntpoint/
+```
+
 ### Example usage:
 
 From the linux terminal:
