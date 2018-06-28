@@ -29,12 +29,14 @@ class NetCDFFUSE(Operations):
 
   class PotentialNetCDFFile:
     def __init__(self, path):
+      """
       self.dsattrs = { "user.ndim" : (lambda x : x.value.ndim), 
         "user.shape" : (lambda x : x.value.shape), 
         "user.dtype" : (lambda x : x.value.dtype), 
         "user.size" : (lambda x : x.value.size), 
         "user.itemsize" : (lambda x : x.value.itemsize), 
         "user.dtype.itemsize" : (lambda x : x.value.dtype.itemsize),}
+      """
       self.fullpath = path
       self.internalpath = "/"
       self.dataset_handle = None
