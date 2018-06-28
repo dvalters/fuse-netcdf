@@ -81,7 +81,7 @@ If you are using a graphical file browser, the output is similar. Here is an exa
 
 ![variable dirs](docs/variable_dirs.png)
 
-![var_attrs](docs/variable_attrs.png)
+![var_attrs](docs/var_attrs.png)
 
 
 ## Development resources
