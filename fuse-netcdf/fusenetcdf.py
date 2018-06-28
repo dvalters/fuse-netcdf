@@ -131,8 +131,7 @@ class NetCDFFUSE(Operations):
             print "WE ARE AT VARIABLE: ", self.internalpath
             statdict = self.makeIntoDir(statdict)
             statdict["st_size"] = 4096
-            self.INSIDE_VAR = True
-          elif "Attributes" in self.internalpath:
+          elif "Data_repr" in self.internalpath:
             print "WE ARE INSIDE A VARIABLE DIR: ", self.internalpath
             statdict["st_size"] = 0
           
@@ -147,6 +146,14 @@ class NetCDFFUSE(Operations):
       dset = ncpy.Dataset(ncfile, 'r')
       return dset.variables
 
+    def getncAttrs(self, nc_var):
+      """Returns a list of attributes for a variable (nc_var)
+      """
+      #import pdb; pdb.set_trace()
+      attrs = self.dataset_handle.variables[nc_var].ncattrs()
+      print attrs
+      return attrs
+
     def listdir(self):
       """Overrides readdir
       """
@@ -156,7 +163,10 @@ class NetCDFFUSE(Operations):
         # Return a list of netCDF variables
         return ['.', '..'] + [item.encode('utf-8') for item in self.ncVars]
       elif self.internalpath in self.ncVars:
-        return ['.', '..'] + ["Attributes", "Data_repr"]
+        print "GETTINGS ATTRIBUTES..."
+        local_attrs = self.getncAttrs(self.internalpath)
+        print "ATTRS: ", local_attrs
+        return ['.', '..'] + local_attrs + ["Data_repr"]
       else:
         return ['.', '..'] 
 #      else:
