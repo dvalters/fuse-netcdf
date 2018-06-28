@@ -77,6 +77,13 @@ mntpoint/
 # etc etc.....
 ```
 
+If you are using a graphical file browser, the output is similar. Here is an example of what it should look like:
+
+![variable dirs](docs/variable_dirs.png)
+
+![variable_attrs](docs/variable_attrs.png)
+
+
 ## Development resources
 
 Example of the fusepy module in use here (w/o netCDF)  https://github.com/dvalters/Python-miscellany/blob/master/fusepy.ipynb
