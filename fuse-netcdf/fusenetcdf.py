@@ -19,7 +19,15 @@ from errno import EACCES
 
 
 class NetCDFFUSE(Operations):
-  """Inherit from the base fusepy Operations class"""
+  """Inherit from the base fusepy Operations class
+
+  This is a wrapper class that contains a subclass for 
+  mapping the netCDF file to filesystem operations.
+
+  (There is probably a more elegant way of doing this
+   - could be refactored lateer.)
+  """
+
   def __init__(self, filerootdir):
     self.filerootdir = os.path.realpath(filerootdir)
     self.readwritelock = Lock()
@@ -28,6 +36,9 @@ class NetCDFFUSE(Operations):
     return super(NetCDFFUSE, self).__call__(operation, self.filerootdir + path, *args)
 
   class PotentialNetCDFFile:
+    """
+    Main object for netCDF-filesytem operations
+    """
     def __init__(self, path):
       """
       self.dsattrs = { "user.ndim" : (lambda x : x.value.ndim), 
@@ -42,7 +53,7 @@ class NetCDFFUSE(Operations):
       self.dataset_handle = None
       self.dataset_file = None
       self.ncVars = None
-    
+
       # Check that there is a netCDF file
       if os.path.lexists(path):
         self.testNetCDF(path)
@@ -54,11 +65,13 @@ class NetCDFFUSE(Operations):
             self.internalpath = "/".join(components[i-len(components):])
             print(self.internalpath)
             break
-
-        # handle this case better - I think it can be done better with 
+        # Could handle this case better - I think it can be done better with 
         # the os path methods
 
     def testNetCDF(self, path):
+      """
+      Check if the path is a netCDF file. 
+      """
       if os.path.isfile(path):
         try:
           # Also test for netCDF version here?
@@ -136,14 +149,16 @@ class NetCDFFUSE(Operations):
       return dset.variables
 
     def getncAttrs(self, nc_var):
-      """Returns a list of attributes for a variable (nc_var)
-      """
+      """Returns a list of attributes for a variable (nc_var)"""
       attrs = self.dataset_handle.variables[nc_var].ncattrs()
       print("ATTRIBUTES: ", attrs)
       return attrs
 
     def listdir(self):
-      """Overrides readdir
+      """Overrides readdir.
+
+      Called when ls or ll and any other unix command that relies 
+      on this operation to work.
       """
       if self.dataset_handle == None:
         return ['.', '..'] + [name.encode('utf-8') for name in os.listdir(self.fullpath)]
@@ -188,7 +203,16 @@ class NetCDFFUSE(Operations):
       if self.dataset_handle == None or self.internalpath == "/":
         return os.close(fh)
       return 0
+  
+  """These are the fusepy module methods that are overridden
+  in this class. Any method not overridden here means that
+  the default fusepy API method will be used. 
 
+  (See the fusepy.Operations class)
+
+  Note these are not exactly the same as the C libs for FUSE
+  
+  """
   def acccess(self, path, mode):
     self.PotentialNetCDFFile(path).access(mode)
 
@@ -237,10 +261,6 @@ class NetCDFFUSE(Operations):
   readlink = os.readlink
 
 
-"""
-At the minute, the netCDF file has to be in a parent folder,
-but this can be changed in future, i.e. just point to a single .nc file
-"""
 if __name__ == "__main__":
   if len(sys.argv) != 3:
     print("Usage: %s <netcdf file folder> <mountpoint>" % sys.argv[0])
