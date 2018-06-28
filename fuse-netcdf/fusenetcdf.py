@@ -40,6 +40,8 @@ class NetCDFFUSE(Operations):
       self.dataset_handle = None
       self.dataset_file = None
       self.ncVars = None
+
+      self.INSIDE_VAR = None
       
       # Check that there is a netCDF file
       if os.path.lexists(path):
@@ -124,11 +126,16 @@ class NetCDFFUSE(Operations):
           elif self.internalpath == "":
             print "WE ARE AT THE TOP: ", self.internalpath
             statdict = self.makeIntoDir(statdict)
-            statdict["st_size"] = 0
+            statdict["st_size"] = 4096
           elif self.internalpath in self.ncVars:
             print "WE ARE AT VARIABLE: ", self.internalpath
             statdict = self.makeIntoDir(statdict)
+            statdict["st_size"] = 4096
+            self.INSIDE_VAR = True
+          elif "Attributes" in self.internalpath:
+            print "WE ARE INSIDE A VARIABLE DIR: ", self.internalpath
             statdict["st_size"] = 0
+          
             
         return statdict	
 
@@ -148,8 +155,10 @@ class NetCDFFUSE(Operations):
       elif self.internalpath == "":
         # Return a list of netCDF variables
         return ['.', '..'] + [item.encode('utf-8') for item in self.ncVars]
+      elif self.internalpath in self.ncVars:
+        return ['.', '..'] + ["Attributes", "Data_repr"]
       else:
-        return ['.', '..']
+        return ['.', '..'] 
 #      else:
 #        items = self.dataset_handle[self.internalpath].items()
 #        return ['.', '..'] + [item[0].encode('utf-8')  for item in items]
