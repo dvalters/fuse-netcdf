@@ -101,7 +101,6 @@ class NetCDFFUSE(Operations):
         to be set to S_IFREG (that stands for regular file) and st_nlink to 1.
         Files also require that the st_size (the full file size) is specified.
         """
-        #import pdb; pdb.set_trace()
         if self.dataset_file != None:
           st = os.lstat(self.dataset_file)
         else:
@@ -109,20 +108,11 @@ class NetCDFFUSE(Operations):
         statdict = dict((key, getattr(st, key)) for key in ('st_atime', 'st_ctime',
                 'st_gid', 'st_mode', 'st_mtime', 'st_nlink', 'st_size', 'st_uid'))
         if self.dataset_file != None:
-          #print "NEXUSHANDLE:  ", self.dataset_handle
-          print "NEXUSFILE:    ", self.dataset_file
+          print "NETCDF_FILE:    ", self.dataset_file
           print "INTERNALPATH: ", self.internalpath
           if self.internalpath == "/":
             print "at a filepath slash..."
-            #import pdb; pdb.set_trace()
             statdict = self.makeIntoDir(statdict)
-            #elif isinstance(self.dataset_handle[self.internalpath],h5py.Group):
-            #	statdict = self.makeIntoDir(statdict)
-            #	statdict["st_size"] = 0
-            #elif isinstance(self.dataset_handle[self.internalpath],h5py.Dataset):
-            #	ob=self.dataset_handle[self.internalpath].value
-            #	statdict["st_size"] = ob.size * ob.itemsize
-            #elif isinstance(self.dataset_handle[self.internalpath], ncpy.Dataset):
           elif self.internalpath == "":
             print "WE ARE AT THE TOP: ", self.internalpath
             statdict = self.makeIntoDir(statdict)
@@ -148,7 +138,6 @@ class NetCDFFUSE(Operations):
     def getncAttrs(self, nc_var):
       """Returns a list of attributes for a variable (nc_var)
       """
-      #import pdb; pdb.set_trace()
       attrs = self.dataset_handle.variables[nc_var].ncattrs()
       print attrs
       return attrs
@@ -168,9 +157,6 @@ class NetCDFFUSE(Operations):
         return ['.', '..'] + local_attrs + ["DATA_REPR"]
       else:
         return ['.', '..'] 
-#      else:
-#        items = self.dataset_handle[self.internalpath].items()
-#        return ['.', '..'] + [item[0].encode('utf-8')  for item in items]
     
     def listxattr(self):
       raise NotImplementedError()
