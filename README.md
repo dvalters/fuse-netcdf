@@ -7,6 +7,8 @@ This readme contains a brief overview of how to use fuse-netcdf and some example
 
 ## Usage
 
+*Note:* At the minute the script will only mount a read only version of the netCDF file, with folders for each Variable and 'placeholder' files for Variable metadata names. These will soon contain editable variable metadata.
+
 This is currently a work in progress, but the basic usage at the testing stage is as follows:
 
 ```bash
