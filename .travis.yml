@@ -7,5 +7,4 @@ python:
 install: true
 
 script:
- - cd test 
- - python -m unittest fusenetcdf.test
+ - python -m unittest test.test_fusenetcdf
