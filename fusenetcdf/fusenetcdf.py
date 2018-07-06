@@ -97,8 +97,8 @@ class NetCDFFUSE(Operations):
       presented as a directory
       """
       print("Making a statdict to create a folder structure!")
-      statdict["st_mode"] = statdict["st_mode"] ^ 0100000 | 0040000
-      for i in [ [ 0400 , 0100 ] , [ 040 , 010 ] , [ 04, 01 ] ]:
+      statdict["st_mode"] = statdict["st_mode"] ^ 0o100000 | 0o040000
+      for i in [ [ 0o400 , 0o100 ] , [ 0o40 , 0o10 ] , [ 0o4, 0o1 ] ]:
         if (statdict["st_mode"] & i[0]) != 0:
           statdict["st_mode"] = statdict["st_mode"] | i[1]
       return statdict
