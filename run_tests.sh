@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
-python -m unittest fusenetcdf.tests
+python -m unittest test.test_fusenetcdf
 
