@@ -5,7 +5,8 @@ python:
  - '3.6'
  - '2.7'
 
-install: true
+install:
+ - "pip install --upgrade pip
 
 script:
  - python -m unittest test.test_fusenetcdf
