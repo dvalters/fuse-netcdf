@@ -1,8 +1,9 @@
 cftime==1.0.0
 Cython==0.28.3
 fuse-python==0.3.1
--e git+git@github.com:dvalters/fusepy.git@b5f87a1855119d55c755c2c4c8b1da346365629d#egg=fusepy
--e git+git@github.com:dvalters/h5fs.git@194dae9e0fbf11faba95ebabb43c2a09364b18d7#egg=h5fs
+#-e git+git@github.com:dvalters/fusepy.git@b5f87a1855119d55c755c2c4c8b1da346365629d#egg=fusepy
+#-e git+git@github.com:dvalters/h5fs.git@194dae9e0fbf11faba95ebabb43c2a09364b18d7#egg=h5fs
+fusepy
 h5py==2.8.0
 netCDF4==1.4.0
 numpy==1.14.5
