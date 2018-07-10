@@ -91,9 +91,9 @@ class NetCDFFUSE(Operations):
             if self.dataset_handle is not None:
                 try:
                     self.dataset_handle.close()
-                except:
+                except exc as e:
                     # needs a better soln!
-                    pass
+                    print(e)
 
         @classmethod
         def makeIntoDir(cls, statdict):
