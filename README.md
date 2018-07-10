@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/dvalters/fuse-netcdf.svg?branch=master)](https://travis-ci.org/dvalters/fuse-netcdf)
+
 # fuse-netcdf
 ESoWC project for the netcdf-fusepy utility. (Work in progress)
 
