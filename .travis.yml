@@ -17,3 +17,5 @@ install:
 
 script:
  - python -m unittest test.test_fusenetcdf
+ - py.test --pep8
+
