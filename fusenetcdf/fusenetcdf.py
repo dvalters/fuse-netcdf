@@ -95,7 +95,8 @@ class NetCDFFUSE(Operations):
                     # needs a better soln!
                     pass
 
-        def makeIntoDir(self, statdict):
+        @classmethod
+        def makeIntoDir(cls, statdict):
             """Update the statdict if the item in the VFS should be
             presented as a directory
             """
@@ -149,7 +150,8 @@ class NetCDFFUSE(Operations):
         def getxattr(self, name):
             raise NotImplementedError()
 
-        def getncVars(self, ncfile):
+        @classmethod
+        def getncVars(cls, ncfile):
             """Returns the variables in a netcdf file"""
             dset = ncpy.Dataset(ncfile, 'r')
             return dset.variables
