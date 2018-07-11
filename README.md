@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/dvalters/fuse-netcdf.svg?branch=master)](https://travis-ci.org/dvalters/fuse-netcdf)
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/8fc60d5b983c4a24920b6b53996e1fdd)](https://www.codacy.com/app/dvalters/fuse-netcdf?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=dvalters/fuse-netcdf&amp;utm_campaign=Badge_Grade)
 
 # fuse-netcdf
 ESoWC project for the netcdf-fusepy utility. (Work in progress)
