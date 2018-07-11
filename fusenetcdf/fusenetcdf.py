@@ -216,54 +216,54 @@ class NetCDFFUSE(Operations):
                 return os.close(fh)
             return 0
 
-        """These are the fusepy module methods that are overridden
-        in this class. Any method not overridden here means that
-        the default fusepy API method will be used.
+    """These are the fusepy module methods that are overridden
+    in this class. Any method not overridden here means that
+    the default fusepy API method will be used.
 
-        (See the fusepy.Operations class)
+    (See the fusepy.Operations class)
 
-        Note these are not exactly the same as the C libs for FUSE
+    Note these are not exactly the same as the C libs for FUSE
 
-        """
-        def acccess(self, path, mode):
-            self.PotentialNetCDFFile(path).access(mode)
+    """
+    def acccess(self, path, mode):
+        self.PotentialNetCDFFile(path).access(mode)
 
-        def read(self, path, size, offset, fh):
-            return self.PotentialNetCDFFile(path).read(size, offset,
-                                                       fh, self.readwritelock)
+    def read(self, path, size, offset, fh):
+        return self.PotentialNetCDFFile(path).read(size, offset,
+                                                   fh, self.readwritelock)
 
-        def getattr(self, path, fh=None):
-            return self.PotentialNetCDFFile(path).getattr()
+    def getattr(self, path, fh=None):
+        return self.PotentialNetCDFFile(path).getattr()
 
-        def getxattr(self, path, name):
-            return self.PotentialNetCDFFile(path).getxattr(name)
+    def getxattr(self, path, name):
+        return self.PotentialNetCDFFile(path).getxattr(name)
 
-        def listxattr(self, path):
-            return self.PotentialNetCDFFile(path).listxattr()
+    def listxattr(self, path):
+        return self.PotentialNetCDFFile(path).listxattr()
 
-        def readdir(self, path, fh):
-            return self.PotentialNetCDFFile(path).listdir()
+    def readdir(self, path, fh):
+        return self.PotentialNetCDFFile(path).listdir()
 
-        def release(self, path, fh):
-            return self.PotentialNetCDFFile(path).close(fh)
+    def release(self, path, fh):
+        return self.PotentialNetCDFFile(path).close(fh)
 
-        def statfs(self, path):
-            # Need to think about this one some more...
-            raise NotImplementedError()
+    def statfs(self, path):
+        # Need to think about this one some more...
+        raise NotImplementedError()
 
-        def open(self, path, flags):
-            return self.PotentialNetCDFFile(path).open(flags)
+    def open(self, path, flags):
+        return self.PotentialNetCDFFile(path).open(flags)
 
-        truncate = None
-        write = None
-        rename = None
-        symlink = None
-        setxattr = None
-        removexattr = None
-        link = None
-        mkdir = None
-        mknod = None
-        rmdir = None
+    truncate = None
+    write = None
+    rename = None
+    symlink = None
+    setxattr = None
+    removexattr = None
+    link = None
+    mkdir = None
+    mknod = None
+    rmdir = None
         unlink = None
         chmod = None
         chown = None
