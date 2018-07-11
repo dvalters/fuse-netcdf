@@ -264,14 +264,14 @@ class NetCDFFUSE(Operations):
     mkdir = None
     mknod = None
     rmdir = None
-        unlink = None
-        chmod = None
-        chown = None
-        create = None
-        fsync = None
-        flush = None
-        utimens = os.utime
-        readlink = os.readlink
+    unlink = None
+    chmod = None
+    chown = None
+    create = None
+    fsync = None
+    flush = None
+    utimens = os.utime
+    readlink = os.readlink
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
