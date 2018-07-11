@@ -162,6 +162,10 @@ class NetCDFFUSE(Operations):
             print("ATTRIBUTES: ", attrs)
             return attrs
 
+        def getncAttribute(self, nc_attr):
+            """Return a string/bytes representation of a variable attribute"""
+            pass
+
         def listdir(self):
             """Overrides readdir.
             Called when ls or ll and any other unix command that relies
@@ -197,6 +201,11 @@ class NetCDFFUSE(Operations):
                 raise FuseOSError(EACCES)
 
         def read(self, size, offset, fh, lock):
+            """
+            Called when FUSE is reading the data from an opened file.
+            So if we are opening a attribute file it should return
+            a text (bytes?) representation of the contents of that file/
+            """
             if self.dataset_handle is None or self.internalpath == "/":
                 with lock:
                     os.lseek(fh, offset, 0)
@@ -205,6 +214,11 @@ class NetCDFFUSE(Operations):
                     self.dataset_handle[self.internalpath], ncpy.Dataset):
                 return self.dataset_handle[
                         self.internalpath].value.tostring()[offset:offset+size]
+            # Case for if at a variable file.
+            if self.internalpath in self.ncVars:
+                # DO SOMETHING CLEVER
+                variable_attribute = get_ncattribute()
+                return variable_attribute
 
         def open(self, flags):
             if self.dataset_handle is None or self.internalpath == "/":
