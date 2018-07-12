@@ -149,7 +149,16 @@ class NetCDFFUSE(Operations):
             return statdict
 
         def getxattr(self, name):
-            raise NotImplementedError()
+            """
+            Gets the extended attributes for a file. See the linux programming
+            man pages for xattr.
+            """
+            return "foo"
+            #if self.dataset_handle is None:
+            #    return ""
+            #rawname = name[5:]
+            #if rawname in 
+            #return rawname
 
         @classmethod
         def getncVars(cls, ncfile):
