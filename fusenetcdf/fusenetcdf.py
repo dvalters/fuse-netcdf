@@ -1,5 +1,5 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+#!/usr/bin/env python
 
 """
 fuse-netcdf project
@@ -94,6 +94,7 @@ class NetCDFFUSE(Operations):
                 except exc as e:
                     # needs a better soln!
                     print(e)
+                    pass
 
         @classmethod
         def makeIntoDir(cls, statdict):
