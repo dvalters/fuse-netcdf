@@ -85,7 +85,7 @@ class NetCDFFUSE(Operations):
                     return True
                 except exc as e:
                     print(e)
-            return False
+                return False
 
         def __del__(self):
             if self.dataset_handle is not None:
@@ -124,10 +124,10 @@ class NetCDFFUSE(Operations):
                 st = os.lstat(self.dataset_file)
             else:
                 st = os.lstat(self.fullpath)
-                statdict = dict((key, getattr(st, key)) for key in
-                                ('st_atime', 'st_ctime', 'st_gid', 'st_mode',
-                                    'st_mtime', 'st_nlink',
-                                    'st_size', 'st_uid'))
+            statdict = dict((key, getattr(st, key)) for key in
+                            ('st_atime', 'st_ctime', 'st_gid', 'st_mode',
+                                'st_mtime', 'st_nlink',
+                                'st_size', 'st_uid'))
             if self.dataset_file is not None:
                 print("NETCDF_FILE:    ", self.dataset_file)
                 print("INTERNALPATH: ", self.internalpath)
@@ -194,9 +194,9 @@ class NetCDFFUSE(Operations):
             path = self.fullpath
             if self.dataset_file is not None:
                 path = self.dataset_file
-            # If we can execute it, we should be able to read it too
-            if mode == os.X_OK:
-                mode == os.R_OK
+                # If we can execute it, we should be able to read it too
+                if mode == os.X_OK:
+                    mode == os.R_OK
             if not os.access(path, mode):
                 raise FuseOSError(EACCES)
 
@@ -209,16 +209,16 @@ class NetCDFFUSE(Operations):
             if self.dataset_handle is None or self.internalpath == "/":
                 with lock:
                     os.lseek(fh, offset, 0)
-                    return os.read(fh, size)
+                return os.read(fh, size)
             if isinstance(
                     self.dataset_handle[self.internalpath], ncpy.Dataset):
                 return self.dataset_handle[
                         self.internalpath].value.tostring()[offset:offset+size]
             # Case for if at a variable file.
-            if self.internalpath in self.ncVars:
-                # DO SOMETHING CLEVER
-                variable_attribute = get_ncattribute()
-                return variable_attribute
+            #if self.internalpath in self.ncVars:
+            #    # DO SOMETHING CLEVER
+            #    variable_attribute = get_ncattribute()
+            #    return variable_attribute
 
         def open(self, flags):
             if self.dataset_handle is None or self.internalpath == "/":
@@ -263,7 +263,10 @@ class NetCDFFUSE(Operations):
 
     def statfs(self, path):
         # Need to think about this one some more...
-        raise NotImplementedError()
+        stv = os.statvfs(path)
+        return dict((key, getattr(stv, key)) for key in ('f_bavail', 'f_bfree',
+            'f_blocks', 'f_bsize', 'f_favail', 'f_ffree', 'f_files', 'f_flag',
+            'f_frsize', 'f_namemax'))
 
     def open(self, path, flags):
         return self.PotentialNetCDFFile(path).open(flags)
@@ -291,5 +294,5 @@ if __name__ == "__main__":
     if len(sys.argv) != 3:
         print("Usage: %s <netcdf file folder> <mountpoint>" % sys.argv[0])
         sys.exit(1)
-    fuse = FUSE(NetCDFFUSE(sys.argv[1]), sys.argv[2])
-    # fuse = FUSE(NetCDFFUSE(sys.argv[1]), sys.argv[2], foreground=True)
+    #fuse = FUSE(NetCDFFUSE(sys.argv[1]), sys.argv[2])
+    fuse = FUSE(NetCDFFUSE(sys.argv[1]), sys.argv[2], foreground=True)
