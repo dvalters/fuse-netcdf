@@ -158,7 +158,7 @@ class NetCDFFUSE(Operations):
             if self.dataset_handle is None:
                 return ""
             rawname = name[5:]
-            if rawname in 
+            if rawname in
             return rawname
             '''
 
@@ -227,7 +227,7 @@ class NetCDFFUSE(Operations):
                 return self.dataset_handle[
                         self.internalpath].value.tostring()[offset:offset+size]
             # Case for if at a variable file.
-            #if self.internalpath in self.ncVars:
+            # if self.internalpath in self.ncVars:
             #    # DO SOMETHING CLEVER
             #    variable_attribute = get_ncattribute()
             #    return variable_attribute
@@ -277,9 +277,10 @@ class NetCDFFUSE(Operations):
         # Need to think about this one some more...
         stv = os.statvfs(path)
         return dict(
-            (key, getattr(stv, key)) for key in ('f_bavail', 'f_bfree',
-                'f_blocks', 'f_bsize', 'f_favail', 'f_ffree', 'f_files',
-                'f_flag', 'f_frsize', 'f_namemax'))
+            (key, getattr(stv, key)) for key in (
+             'f_bavail', 'f_bfree',
+             'f_blocks', 'f_bsize', 'f_favail', 'f_ffree', 'f_files',
+             'f_flag', 'f_frsize', 'f_namemax'))
 
     def open(self, path, flags):
         return self.PotentialNetCDFFile(path).open(flags)
