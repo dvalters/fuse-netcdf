@@ -154,11 +154,13 @@ class NetCDFFUSE(Operations):
             man pages for xattr.
             """
             return "foo"
-            #if self.dataset_handle is None:
-            #    return ""
-            #rawname = name[5:]
-            #if rawname in 
-            #return rawname
+            '''
+            if self.dataset_handle is None:
+                return ""
+            rawname = name[5:]
+            if rawname in 
+            return rawname
+            '''
 
         @classmethod
         def getncVars(cls, ncfile):
@@ -274,9 +276,10 @@ class NetCDFFUSE(Operations):
     def statfs(self, path):
         # Need to think about this one some more...
         stv = os.statvfs(path)
-        return dict((key, getattr(stv, key)) for key in ('f_bavail', 'f_bfree',
-            'f_blocks', 'f_bsize', 'f_favail', 'f_ffree', 'f_files', 'f_flag',
-            'f_frsize', 'f_namemax'))
+        return dict(
+            (key, getattr(stv, key)) for key in ('f_bavail', 'f_bfree',
+                'f_blocks', 'f_bsize', 'f_favail', 'f_ffree', 'f_files',
+                'f_flag', 'f_frsize', 'f_namemax'))
 
     def open(self, path, flags):
         return self.PotentialNetCDFFile(path).open(flags)
@@ -304,5 +307,5 @@ if __name__ == "__main__":
     if len(sys.argv) != 3:
         print("Usage: %s <netcdf file folder> <mountpoint>" % sys.argv[0])
         sys.exit(1)
-    #fuse = FUSE(NetCDFFUSE(sys.argv[1]), sys.argv[2])
+    # fuse = FUSE(NetCDFFUSE(sys.argv[1]), sys.argv[2])
     fuse = FUSE(NetCDFFUSE(sys.argv[1]), sys.argv[2], foreground=True)
