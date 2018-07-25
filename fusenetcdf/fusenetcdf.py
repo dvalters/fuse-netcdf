@@ -26,7 +26,6 @@ from threading import Lock
 from errno import EACCES
 DEBUG = False
 # DEBUG = True
-once = False
 
 
 def attrs(name):
@@ -127,7 +126,6 @@ class NetCDFFUSE(Operations):
                             var = self.dataset_handle.variables[key]
                             print(key, var)
                             print(var[:])
-                        once = True
                     return True
                 except AttributeError as e: print(e)
                 except RuntimeError as e: print(e)
@@ -308,22 +306,22 @@ class NetCDFFUSE(Operations):
             if alt is None:
                 return res
             else:
-                if alt == "DATA_REPR":                    
+                if alt == "DATA_REPR":
                     res = ""
                     for item in var:
-                        # res += "%s, " % item 
+                        # res += "%s, " % item
                         res += "\n" + repr(item)
                     return res[offset:offset+size-1] + "\n"
-                if type(var) == netCDF4._netCDF4.Variable:
+                if isinstance(var, netCDF4._netCDF4.Variable):
                     res = alt_to_str(alt, var)
                     if res is not None: return res
                     try:
                         res = getattr(var, alt)
                         print("# try", res, var)
                         return res[offset:offset+size-1] + "\n"
+                    # except AttributeError:
                     except:
                         print("# ALT", alt)
-                        # return "%s" % var
                         res = repr(var)
                         return res[offset:offset+size-1] + "\n"
                 print("# TYP", type(var), type(alt))
