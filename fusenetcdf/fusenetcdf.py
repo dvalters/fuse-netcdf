@@ -134,6 +134,7 @@ class NetCDFFUSE(Operations):
                 except RuntimeError as e:
                     print(e)
                 except exc as e:
+                    print(e)
                     print(sys.exc_info()[0])
                 return False
 
