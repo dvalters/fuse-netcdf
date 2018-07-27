@@ -7,15 +7,48 @@ fuse-netcdf project
 This is the ESoWC project to create a mountable netcdf file
 in user space using the fusepy and python-netcdf libraries
 
+doc: http://www.ceda.ac.uk/static/media/uploads/ncas-reading-2015/10_read_netcdf_python.pdf
+
+Thanks https://www.stavros.io/posts/python-fuse-filesystem/
+https://github.com/libfuse/python-fuse
+
+
 """
+from __future__ import with_statement, print_function
 
 import os
 import sys
+import netCDF4
 import netCDF4 as ncpy
 
 from fuse import FUSE, FuseOSError, Operations
 from threading import Lock
 from errno import EACCES
+DEBUG = False
+# DEBUG = True
+
+
+def attrs(name):
+    cur = os.lstat(name)
+    return dict((key, getattr(cur, key)) for key in (
+        'st_size', 'st_gid', 'st_uid',
+        'st_mode', 'st_mtime', 'st_atime', 'st_ctime', ))
+
+
+def alt_to_str(alt, var):
+    if alt == "scale_factor":
+        return "%s\n" % var.scale_factor
+    if alt == "add_offset":
+        return "%s\n" % var.add_offset
+    if alt == "units":
+        return "%s\n" % var.units
+    if alt == "long_name":
+        return "%s\n" % var.long_name
+    if alt == "missing_value":
+        return "%s\n" % var.missing_value
+    if alt == "_FillValue":
+        return "%s\n" % var._FillValue
+    return None
 
 
 class NetCDFFUSE(Operations):
@@ -33,8 +66,8 @@ class NetCDFFUSE(Operations):
         self.readwritelock = Lock()
 
     def __call__(self, operation, path, *args):
-        return super(NetCDFFUSE, self).__call__(operation, self.filerootdir +
-                                                path, *args)
+        return super(NetCDFFUSE, self).__call__(
+            operation, self.filerootdir + path, *args)
 
     class PotentialNetCDFFile:
         """
@@ -65,7 +98,7 @@ class NetCDFFUSE(Operations):
                     if self.testNetCDF(test):
                         self.internalpath = "/".join(
                             components[i - len(components):])
-                        print(self.internalpath)
+                        if DEBUG: print(self.internalpath)
                         break
                         # Could handle this case better
                         # I think it can be done better with
@@ -81,10 +114,23 @@ class NetCDFFUSE(Operations):
                     self.dataset_handle = ncpy.Dataset(path, "r")
                     self.dataset_file = path
                     self.ncVars = self.getncVars(path)
-                    print(path + " is netCDF")
+                    if DEBUG: print(path + " is netCDF")
+                    # if 1:
+                    if DEBUG:
+                        print(path + " is netCDF")
+                        print(self.dataset_handle.dimensions.keys())
+                        for key in self.dataset_handle.dimensions.keys():
+                            print(self.dataset_handle.dimensions[key])
+                        print(self.dataset_handle.variables.keys())
+                        for key in self.dataset_handle.variables.keys():
+                            var = self.dataset_handle.variables[key]
+                            print(key, var)
+                            print(var[:])
                     return True
-                except exc as e:
-                    print(e)
+                except AttributeError as e: print(e)
+                except RuntimeError as e: print(e)
+                except:
+                    print(sys.exc_info()[0])
                 return False
 
         def __del__(self):
@@ -101,11 +147,11 @@ class NetCDFFUSE(Operations):
             """Update the statdict if the item in the VFS should be
             presented as a directory
             """
-            print("Making a statdict to create a folder structure!")
-            statdict["st_mode"] = statdict["st_mode"] ^ 0o100000 | 0o040000
+            if DEBUG: print("#MSG: Making a statdict to create a folder structure!")
+            statdict['st_mode'] = statdict['st_mode'] ^ 0o100000 | 0o040000
             for i in [[0o400, 0o100], [0o40, 0o10], [0o4, 0o1]]:
-                if (statdict["st_mode"] & i[0]) != 0:
-                    statdict["st_mode"] = statdict["st_mode"] | i[1]
+                if (statdict['st_mode'] & i[0]) != 0:
+                    statdict['st_mode'] = statdict['st_mode'] | i[1]
             return statdict
 
         def getattr(self):
@@ -127,25 +173,37 @@ class NetCDFFUSE(Operations):
                 st = os.lstat(self.fullpath)
             statdict = dict((key, getattr(st, key)) for key in
                             ('st_atime', 'st_ctime', 'st_gid', 'st_mode',
-                                'st_mtime', 'st_nlink',
-                                'st_size', 'st_uid'))
+                             'st_mtime', 'st_nlink',
+                             'st_size', 'st_uid'))
             if self.dataset_file is not None:
-                print("NETCDF_FILE:    ", self.dataset_file)
-                print("INTERNALPATH: ", self.internalpath)
+                if DEBUG:
+                    print("NETCDF_FILE:    ", self.dataset_file)
+                    print("INTERNALPATH: ", self.internalpath)
                 if self.internalpath == "/":
-                    print("at a filepath slash...")
+                    if DEBUG: print("at a filepath slash...")
                     statdict = self.makeIntoDir(statdict)
                 elif self.internalpath == "":
-                    print("WE ARE AT THE TOP: ", self.internalpath)
+                    if DEBUG: print("WE ARE AT THE TOP: ", self.internalpath)
                     statdict = self.makeIntoDir(statdict)
-                    statdict["st_size"] = 4096
+                    statdict['st_size'] = 4096
                 elif self.internalpath in self.ncVars:
-                    print("WE ARE AT VARIABLE: ", self.internalpath)
+                    if DEBUG: print("WE ARE AT VARIABLE: ", self.internalpath)
                     statdict = self.makeIntoDir(statdict)
-                    statdict["st_size"] = 4096
+                    statdict['st_size'] = 4096
                 elif "DATA_REPR" in self.internalpath:
-                    print("WE ARE INSIDE A VARIABLE DIR: ", self.internalpath)
-                    statdict["st_size"] = 0
+                    if DEBUG: print("WE ARE INSIDE A VARIABLE DIR: ", self.internalpath)
+                    var = self.dataset_handle.variables[
+                        self.internalpath.split('/')[0]]
+                    # res = "%s" % var[:]
+                    res = repr(var[:])
+                    statdict['st_size'] = len(res) # 0
+                elif '/' in self.internalpath:
+                    path, alt = self.internalpath.split('/')
+                    var = self.dataset_handle.variables[path]
+                    res = alt_to_str(alt, var)
+                    if res is not None:
+                        statdict['st_size'] = len(res)
+
             return statdict
 
         def getxattr(self, name):
@@ -171,7 +229,7 @@ class NetCDFFUSE(Operations):
         def getncAttrs(self, nc_var):
             """Returns a list of attributes for a variable (nc_var)"""
             attrs = self.dataset_handle.variables[nc_var].ncattrs()
-            print("ATTRIBUTES: ", attrs)
+            if DEBUG: print("# MSG: ATTRIBUTES: ", attrs)
             return attrs
 
         def getncAttribute(self, nc_attr):
@@ -179,6 +237,9 @@ class NetCDFFUSE(Operations):
             pass
 
         def listdir(self):
+            return self.readdir()
+
+        def readdir(self):
             """Overrides readdir.
             Called when ls or ll and any other unix command that relies
             on this operation to work.
@@ -192,9 +253,9 @@ class NetCDFFUSE(Operations):
                 return (['.', '..'] + [item.encode('utf-8')
                         for item in self.ncVars])
             elif self.internalpath in self.ncVars:
-                print("GETTING ATTRIBUTES...")
+                if DEBUG: print("# MSG: GETTING ATTRIBUTES...")
                 local_attrs = self.getncAttrs(self.internalpath)
-                print("ATTRS: ", local_attrs)
+                if DEBUG: print("# ATTRS: ", local_attrs)
                 return ['.', '..'] + local_attrs + ["DATA_REPR"]
             else:
                 return ['.', '..']
@@ -222,19 +283,60 @@ class NetCDFFUSE(Operations):
                 with lock:
                     os.lseek(fh, offset, 0)
                 return os.read(fh, size)
-            if isinstance(
-                    self.dataset_handle[self.internalpath], ncpy.Dataset):
-                return self.dataset_handle[
+            # import pprint
+            # pp = pprint.PrettyPrinter(indent=4)
+            for ign in ("/.paths", "/.git", ".paths", ".git",
+                        # "/_FillValue",
+                    ):
+                if ign in self.internalpath:
+                    self.internalpath = self.internalpath.replace(ign, "")
+            alt = None
+            if '/' in self.internalpath:
+                self.internalpath, alt = self.internalpath.split('/')
+                print("# ALT", alt)
+                # print(sys.exc_info()[0])
+            # pp.pformat(self.internalpath)
+            # pp.pformat(self.dataset_handle)
+            print("# READ", size, offset, fh, "# IPAT", self.internalpath)
+            # if os.isatty(sys.stdout.fileno()):
+            #print("# DH ", self.dataset_handle)#type 'netCDF4._netCDF4.Dataset'
+            var = self.dataset_handle.variables[self.internalpath]
+            res = "%s" % var
+            # print("# DH[]", res)
+            if alt is None:
+                return res
+            else:
+                if alt == "DATA_REPR":
+                    res = ""
+                    for item in var:
+                        # res += "%s, " % item
+                        res += "\n" + repr(item)
+                    return res[offset:offset+size-1] + "\n"
+                if isinstance(var, netCDF4._netCDF4.Variable):
+                    res = alt_to_str(alt, var)
+                    if res is not None: return res
+                    try:
+                        res = getattr(var, alt)
+                        print("# try", res, var)
+                        return res[offset:offset+size-1] + "\n"
+                    # except AttributeError:
+                    except:
+                        print("# ALT", alt)
+                        res = repr(var)
+                        return res[offset:offset+size-1] + "\n"
+                print("# TYP", type(var), type(alt))
+                return getattr(var, alt) + "\n"
+            if isinstance(var, ncpy.Dataset):
+                res ="%s" % self.dataset_handle[
                         self.internalpath].value.tostring()[offset:offset+size]
-            # Case for if at a variable file.
-            # if self.internalpath in self.ncVars:
-            #    # DO SOMETHING CLEVER
-            #    variable_attribute = get_ncattribute()
-            #    return variable_attribute
+                return res[0:size-2] + "\n"
+            return "empty-none"
 
         def open(self, flags):
             if self.dataset_handle is None or self.internalpath == "/":
-                return os.open(self.fullpath, flags)
+                res = os.open(self.fullpath, flags)
+                print("# ISATTY", res.isatty())
+                return res
             return 0
 
         def close(self, fh):
@@ -255,10 +357,16 @@ class NetCDFFUSE(Operations):
         self.PotentialNetCDFFile(path).access(mode)
 
     def read(self, path, size, offset, fh):
-        return self.PotentialNetCDFFile(path).read(size, offset,
-                                                   fh, self.readwritelock)
+        return self.PotentialNetCDFFile(path).read(
+            size, offset, fh, self.readwritelock)
 
     def getattr(self, path, fh=None):
+        black = (
+            ".xdg-volume-info",
+            "/autorun", "/BDMV", "/AACS", "BDSVM", "/RCS", "/_strptime")
+        st = attrs('.')
+        for key in black:
+            if path == key or key in path: return st
         return self.PotentialNetCDFFile(path).getattr()
 
     def getxattr(self, path, name):
@@ -268,7 +376,8 @@ class NetCDFFUSE(Operations):
         return self.PotentialNetCDFFile(path).listxattr()
 
     def readdir(self, path, fh):
-        return self.PotentialNetCDFFile(path).listdir()
+        # return self.PotentialNetCDFFile(path).listdir()
+        return self.PotentialNetCDFFile(path).readdir()
 
     def release(self, path, fh):
         return self.PotentialNetCDFFile(path).close(fh)
@@ -276,6 +385,7 @@ class NetCDFFUSE(Operations):
     def statfs(self, path):
         # Need to think about this one some more...
         stv = os.statvfs(path)
+        # print("# DBG:", path, stv)
         return dict(
             (key, getattr(stv, key)) for key in (
              'f_bavail', 'f_bfree',
