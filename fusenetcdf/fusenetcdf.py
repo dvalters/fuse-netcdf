@@ -337,6 +337,8 @@ class NetCDFFUSE(Operations):
                         return res[offset:offset + size-1] + "\n"
                     # except AttributeError:
                     except exc as e:
+                        if DEBUG:
+                            print(e)
                         print("# ALT", alt)
                         res = repr(var)
                         return res[offset:offset + size-1] + "\n"
