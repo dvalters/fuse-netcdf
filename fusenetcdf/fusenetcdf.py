@@ -133,7 +133,7 @@ class NetCDFFUSE(Operations):
                     print(e)
                 except RuntimeError as e:
                     print(e)
-                except exc as e:
+                except Exception as e:
                     print(e)
                     print(sys.exc_info()[0])
                 return False
@@ -142,7 +142,7 @@ class NetCDFFUSE(Operations):
             if self.dataset_handle is not None:
                 try:
                     self.dataset_handle.close()
-                except exc as e:
+                except Exception as e:
                     # needs a better soln!
                     print(e)
                     pass
@@ -336,7 +336,7 @@ class NetCDFFUSE(Operations):
                         print("# try", res, var)
                         return res[offset:offset + size-1] + "\n"
                     # except AttributeError:
-                    except exc as e:
+                    except Exception as e:
                         if DEBUG:
                             print(e)
                         print("# ALT", alt)
