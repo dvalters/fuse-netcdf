@@ -35,20 +35,20 @@ def attrs(name):
         'st_mode', 'st_mtime', 'st_atime', 'st_ctime', ))
 
 
-def alt_to_str(alt, var):
+def var_attr_name_to_str(var_attr_name, var):
     """Converts the attribute string to the variable attribute
     contents"""
-    if alt == "scale_factor":
+    if var_attr_name == "scale_factor":
         return "%s\n" % var.scale_factor
-    if alt == "add_offset":
+    if var_attr_name == "add_offset":
         return "%s\n" % var.add_offset
-    if alt == "units":
+    if var_attr_name == "units":
         return "%s\n" % var.units
-    if alt == "long_name":
+    if var_attr_name == "long_name":
         return "%s\n" % var.long_name
-    if alt == "missing_value":
+    if var_attr_name == "missing_value":
         return "%s\n" % var.missing_value
-    if alt == "_FillValue":
+    if var_attr_name == "_FillValue":
         return "%s\n" % var._FillValue
     return None
 
@@ -205,9 +205,9 @@ class NetCDFFUSE(Operations):
                     res = repr(var[:])
                     statdict['st_size'] = len(res)  # 0
                 elif '/' in self.internalpath:
-                    path, alt = self.internalpath.split('/')
+                    path, var_attr_name = self.internalpath.split('/')
                     var = self.dataset_handle.variables[path]
-                    res = alt_to_str(alt, var)
+                    res = var_attr_name_to_str(var_attr_name, var)
                     if res is not None:
                         statdict['st_size'] = len(res)
 
@@ -300,46 +300,47 @@ class NetCDFFUSE(Operations):
                         ):
                 if ign in self.internalpath:
                     self.internalpath = self.internalpath.replace(ign, "")
-            alt = None
+            var_attr_name = None
             if '/' in self.internalpath:
-                self.internalpath, alt = self.internalpath.split('/')
-                print("# ALT", alt)
+                self.internalpath, var_attr_name = self.internalpath.split('/')
+                print("# VARIABLE ATTRIBUTE NAME", var_attr_name)
                 # print(sys.exc_info()[0])
             # pp.pformat(self.internalpath)
             # pp.pformat(self.dataset_handle)
-            print("# READ", size, offset, fh, "# IPAT", self.internalpath)
+            print("# READ", size, offset, fh, "# INTERNAL PATH", self.internalpath)
             # if os.isatty(sys.stdout.fileno()):
             # print("# DH ", self.dataset_handle)
             # type 'netCDF4._netCDF4.Dataset'
             var = self.dataset_handle.variables[self.internalpath]
             res = "%s" % var
             # print("# DH[]", res)
-            if alt is None:
+            if var_attr_name is None:
                 return res
             else:
-                if alt == "DATA_REPR":
+                # Return a basic representation of the data in variable
+                if var_attr_name == "DATA_REPR":
                     res = ""
                     for item in var:
                         # res += "%s, " % item
                         res += "\n" + repr(item)
                     return res[offset:offset+size-1] + "\n"
                 if isinstance(var, netCDF4._netCDF4.Variable):
-                    res = alt_to_str(alt, var)
+                    res = var_attr_name_to_str(var_attr_name, var)
                     if res is not None:
                         return res
                     try:
-                        res = getattr(var, alt)
+                        res = getattr(var, var_attr_name)
                         print("# try", res, var)
                         return res[offset:offset + size-1] + "\n"
                     # except AttributeError:
                     except Exception as e:
                         if DEBUG:
                             print(e)
-                        print("# ALT", alt)
+                        print("# VARIABL ATTR NAME", var_attr_name)
                         res = repr(var)
                         return res[offset:offset + size-1] + "\n"
-                print("# TYP", type(var), type(alt))
-                return getattr(var, alt) + "\n"
+                print("# TYP", type(var), type(var_attr_name))
+                return getattr(var, var_attr_name) + "\n"
             if isinstance(var, ncpy.Dataset):
                 res = "%s" % self.dataset_handle[
                         self.internalpath].value.tostring()[offset:offset+size]
