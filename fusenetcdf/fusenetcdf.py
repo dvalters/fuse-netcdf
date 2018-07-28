@@ -113,9 +113,6 @@ class NetCDFFUSE(Operations):
                     self.ncVars = self.getncVars(path)
                     if DEBUG:
                         print(path + " is netCDF")
-                    # if 1:
-                    if DEBUG:
-                        print(path + " is netCDF")
                         print(self.dataset_handle.dimensions.keys())
                         for key in self.dataset_handle.dimensions.keys():
                             print(self.dataset_handle.dimensions[key])
