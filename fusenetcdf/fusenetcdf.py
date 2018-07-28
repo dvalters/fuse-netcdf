@@ -36,6 +36,8 @@ def attrs(name):
 
 
 def alt_to_str(alt, var):
+    """Converts the attribute string to the variable attribute
+    contents"""
     if alt == "scale_factor":
         return "%s\n" % var.scale_factor
     if alt == "add_offset":
@@ -69,19 +71,13 @@ class NetCDFFUSE(Operations):
         return super(NetCDFFUSE, self).__call__(
             operation, self.filerootdir + path, *args)
 
-    class PotentialNetCDFFile:
+    class NetCDFComponent:
         """
-        Main object for netCDF-filesytem operations
+        Main object for performing operations on various
+        NetCDF file components, e.g. variable, global attrs,
+        variable attrs, etc.
         """
         def __init__(self, path):
-            """
-            self.dsattrs = { "user.ndim" : (lambda x : x.value.ndim),
-              "user.shape" : (lambda x : x.value.shape),
-              "user.dtype" : (lambda x : x.value.dtype),
-              "user.size" : (lambda x : x.value.size),
-              "user.itemsize" : (lambda x : x.value.itemsize),
-              "user.dtype.itemsize" : (lambda x : x.value.dtype.itemsize),}
-            """
             self.fullpath = path
             self.internalpath = "/"
             self.dataset_handle = None
@@ -372,13 +368,14 @@ class NetCDFFUSE(Operations):
 
     """
     def acccess(self, path, mode):
-        self.PotentialNetCDFFile(path).access(mode)
+        self.NetCDFComponent(path).access(mode)
 
     def read(self, path, size, offset, fh):
-        return self.PotentialNetCDFFile(path).read(
+        return self.NetCDFComponent(path).read(
             size, offset, fh, self.readwritelock)
 
     def getattr(self, path, fh=None):
+        # List of system dirs to ignore when getting attrs
         black = (
             ".xdg-volume-info",
             "/autorun", "/BDMV", "/AACS", "BDSVM", "/RCS", "/_strptime")
@@ -386,20 +383,20 @@ class NetCDFFUSE(Operations):
         for key in black:
             if path == key or key in path:
                 return st
-        return self.PotentialNetCDFFile(path).getattr()
+        return self.NetCDFComponent(path).getattr()
 
     def getxattr(self, path, name):
-        return self.PotentialNetCDFFile(path).getxattr(name)
+        return self.NetCDFComponent(path).getxattr(name)
 
     def listxattr(self, path):
-        return self.PotentialNetCDFFile(path).listxattr()
+        return self.NetCDFComponent(path).listxattr()
 
     def readdir(self, path, fh):
-        # return self.PotentialNetCDFFile(path).listdir()
-        return self.PotentialNetCDFFile(path).readdir()
+        # return self.NetCDFComponent(path).listdir()
+        return self.NetCDFComponent(path).readdir()
 
     def release(self, path, fh):
-        return self.PotentialNetCDFFile(path).close(fh)
+        return self.NetCDFComponent(path).close(fh)
 
     def statfs(self, path):
         # Need to think about this one some more...
@@ -412,7 +409,7 @@ class NetCDFFUSE(Operations):
              'f_flag', 'f_frsize', 'f_namemax'))
 
     def open(self, path, flags):
-        return self.PotentialNetCDFFile(path).open(flags)
+        return self.NetCDFComponent(path).open(flags)
 
     truncate = None
     write = None
