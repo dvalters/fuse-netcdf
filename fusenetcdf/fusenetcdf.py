@@ -208,8 +208,14 @@ class NetCDFFUSE(Operations):
                 elif any(variable in self.internalpath for variable in self.ncVars):  # and '/' in self.internalpath:
                 #elif '/' in self.internalpath:
                     if DEBUG:
-                        print("WE ARE INSIDE A VARIABLE DIR: ")
+                        print("WE ARE INSIDE A VARIABLE DIR: ", self.internalpath)
                     path, var_attr_name = self.internalpath.split('/')
+                    print("#MSG: var, attr: ", path, var_attr_name)
+                    print("Available attrs: ", self.dataset_handle.variables[path].ncattrs())
+                    # Check not been given a not existent entry
+                    if var_attr_name not in self.dataset_handle.variables[path].ncattrs():
+                        print("ITEM NOT FOUND: ", var_attr_name, self.internalpath)
+                        raise FuseOSError(ENOENT)
                     var = self.dataset_handle.variables[path]
                     res = var_attr_name_to_str(var_attr_name, var)
                     if res is not None:
