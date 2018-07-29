@@ -183,11 +183,15 @@ class NetCDFFUSE(Operations):
                     if DEBUG:
                         print("at a filepath slash...")
                     statdict = self.makeIntoDir(statdict)
+
+                # Are we at the top of the netCDF mountpoint?
                 elif self.internalpath == "":
                     if DEBUG:
                         print("WE ARE AT THE TOP: ", self.internalpath)
                     statdict = self.makeIntoDir(statdict)
                     statdict['st_size'] = 4096
+
+                # Are we at a variable?
                 elif self.internalpath in self.ncVars:
                     if DEBUG:
                         print("WE ARE AT VARIABLE: ", self.internalpath)
@@ -204,7 +208,8 @@ class NetCDFFUSE(Operations):
                     # res = "%s" % var[:]
                     res = repr(var[:])
                     statdict['st_size'] = len(res)  # 0
-                # Better way to do it?
+
+                # Are we inside a variable directory?
                 elif any(variable in self.internalpath for variable in self.ncVars):  # and '/' in self.internalpath:
                 #elif '/' in self.internalpath:
                     if DEBUG:
@@ -213,10 +218,12 @@ class NetCDFFUSE(Operations):
                     if DEBUG:
                         print("#MSG: var, attr: ", path, var_attr_name)
                         print("#MSG: Available attrs: ", self.dataset_handle.variables[path].ncattrs())
-                    # Check not been given a not existent entry
+                    # Check we are not trying to use a non-existent attribute
                     if var_attr_name not in self.dataset_handle.variables[path].ncattrs():
                         print("ITEM NOT FOUND: ", var_attr_name, self.internalpath)
                         raise FuseOSError(ENOENT)
+
+                    # Return the correct stat for a variable attribute
                     var = self.dataset_handle.variables[path]
                     res = var_attr_name_to_str(var_attr_name, var)
                     if res is not None:
