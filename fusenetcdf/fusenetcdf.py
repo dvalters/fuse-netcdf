@@ -23,8 +23,8 @@ import netCDF4 as ncpy
 
 from fuse import FUSE, FuseOSError, Operations
 from threading import Lock
-from errno import EACCES
-DEBUG = False
+from errno import EACCES, ENOENT
+DEBUG = True
 DEBUG_LEVEL2 = False
 # DEBUG = True
 
@@ -193,25 +193,31 @@ class NetCDFFUSE(Operations):
                         print("WE ARE AT VARIABLE: ", self.internalpath)
                     statdict = self.makeIntoDir(statdict)
                     statdict['st_size'] = 4096
+
+                # Are these next two cases now actually doing the same thing?
                 elif "DATA_REPR" in self.internalpath:
                     if DEBUG:
-                        print("WE ARE INSIDE A VARIABLE DIR: ",
+                        print("WE ARE INSIDE A VARIABLE DIR (WITH DATA_REPR): ",
                               self.internalpath)
                     var = self.dataset_handle.variables[
                         self.internalpath.split('/')[0]]
                     # res = "%s" % var[:]
                     res = repr(var[:])
                     statdict['st_size'] = len(res)  # 0
-                elif '/' in self.internalpath:
+                # Better way to do it?
+                elif any(variable in self.internalpath for variable in self.ncVars):  # and '/' in self.internalpath:
+                #elif '/' in self.internalpath:
+                    if DEBUG:
+                        print("WE ARE INSIDE A VARIABLE DIR: ")
                     path, var_attr_name = self.internalpath.split('/')
                     var = self.dataset_handle.variables[path]
                     res = var_attr_name_to_str(var_attr_name, var)
                     if res is not None:
                         statdict['st_size'] = len(res)
                 else:
-                    print("ITEM NOT FOUND: ", self.internalpath)
-                    return 0
-
+                    if DEBUG:
+                        print("ITEM NOT FOUND: ", self.internalpath)
+                    raise FuseOSError(ENOENT)
             return statdict
 
         def getxattr(self, name):
