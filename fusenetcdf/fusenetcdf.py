@@ -167,6 +167,7 @@ class NetCDFFUSE(Operations):
             to 1. Files also require that the st_size (the full file size) is
             specified.
             """
+            print("# GETATTR...")
             if self.dataset_file is not None:
                 st = os.lstat(self.dataset_file)
             else:
@@ -369,6 +370,7 @@ class NetCDFFUSE(Operations):
             return "empty-none"
 
         def open(self, flags):
+            print("OPENING FILE...")
             if self.dataset_handle is None or self.internalpath == "/":
                 res = os.open(self.fullpath, flags)
                 print("# ISATTY", res.isatty())
@@ -379,6 +381,18 @@ class NetCDFFUSE(Operations):
             if self.dataset_handle is None or self.internalpath == "/":
                 return os.close(fh)
             return 0
+
+        def create(self, path, mode):
+            print("CREATE MODE")
+            # Case for new variable
+    
+            # Case for new attribute
+            
+            # Case for new variable attribute
+            if any(variable in self.internalpath for variable in self.ncVars):
+                variable = self.dataset_handle[path]
+                print("PREPARE TO ADD NEWW ATTRIBUTE: ", path, " TO: ", variable)
+                #self.dataset_handle[variable].
 
     """These are the fusepy module methods that are overridden
     in this class. Any method not overridden here means that
@@ -433,8 +447,11 @@ class NetCDFFUSE(Operations):
     def open(self, path, flags):
         return self.NetCDFComponent(path).open(flags)
 
+    def create(self, path, mode):
+        return self.NetCDFComponent(path).create(mode)
+
     truncate = None
-    write = None
+    #write = None
     rename = None
     symlink = None
     setxattr = None
@@ -446,7 +463,7 @@ class NetCDFFUSE(Operations):
     unlink = None
     chmod = None
     chown = None
-    create = None
+    #create = None
     fsync = None
     flush = None
     utimens = os.utime
