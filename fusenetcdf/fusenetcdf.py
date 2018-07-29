@@ -25,6 +25,7 @@ from fuse import FUSE, FuseOSError, Operations
 from threading import Lock
 from errno import EACCES
 DEBUG = False
+DEBUG_LEVEL2 = False
 # DEBUG = True
 
 
@@ -111,7 +112,7 @@ class NetCDFFUSE(Operations):
                     self.dataset_handle = ncpy.Dataset(path, "r")
                     self.dataset_file = path
                     self.ncVars = self.getncVars(path)
-                    if DEBUG:
+                    if DEBUG_LEVEL2:
                         print(path + " is netCDF")
                         print(self.dataset_handle.dimensions.keys())
                         for key in self.dataset_handle.dimensions.keys():
@@ -207,6 +208,9 @@ class NetCDFFUSE(Operations):
                     res = var_attr_name_to_str(var_attr_name, var)
                     if res is not None:
                         statdict['st_size'] = len(res)
+                else:
+                    print("ITEM NOT FOUND: ", self.internalpath)
+                    return 0
 
             return statdict
 
