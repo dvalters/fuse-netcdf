@@ -120,3 +120,4 @@ https://www.cs.nmsu.edu/~pfeiffer/fuse-tutorial/html/unclear.html
 
 http://www.maastaar.net/fuse/linux/filesystem/c/2016/05/21/writing-a-simple-filesystem-using-fuse/
 
+This is a nice overview of what happens when  various filesytem operations are called: https://www.slideshare.net/matteobertozzi/pythonfuse-pycon4
