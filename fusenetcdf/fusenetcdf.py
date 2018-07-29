@@ -210,8 +210,9 @@ class NetCDFFUSE(Operations):
                     if DEBUG:
                         print("WE ARE INSIDE A VARIABLE DIR: ", self.internalpath)
                     path, var_attr_name = self.internalpath.split('/')
-                    print("#MSG: var, attr: ", path, var_attr_name)
-                    print("Available attrs: ", self.dataset_handle.variables[path].ncattrs())
+                    if DEBUG:
+                        print("#MSG: var, attr: ", path, var_attr_name)
+                        print("#MSG: Available attrs: ", self.dataset_handle.variables[path].ncattrs())
                     # Check not been given a not existent entry
                     if var_attr_name not in self.dataset_handle.variables[path].ncattrs():
                         print("ITEM NOT FOUND: ", var_attr_name, self.internalpath)
