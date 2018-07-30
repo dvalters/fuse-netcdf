@@ -382,7 +382,7 @@ class NetCDFFUSE(Operations):
                 return os.close(fh)
             return 0
 
-        def create(self, path, mode):
+        def create(self, mode):
             print("CREATE MODE")
             # Case for new variable
     
@@ -390,8 +390,13 @@ class NetCDFFUSE(Operations):
             
             # Case for new variable attribute
             if any(variable in self.internalpath for variable in self.ncVars):
-                variable = self.dataset_handle[path]
-                print("PREPARE TO ADD NEWW ATTRIBUTE: ", path, " TO: ", variable)
+                var = self.internalpath.split('/')[0]
+                new_attr = self.internalpath.split('/')[1]
+                variable = self.dataset_handle[var]
+                print("PREPARE TO ADD NEW ATTRIBUTE: ", new_attr, " TO: ", var)
+                print("DEFAULT FILEMODE: ", mode)
+                mode = (os.O_RDWR | os.O_CREAT)
+                print("NEW FILEMODE: ", mode)
                 #self.dataset_handle[variable].
 
     """These are the fusepy module methods that are overridden
