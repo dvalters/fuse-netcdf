@@ -64,13 +64,22 @@ class NetCDFFUSE(Operations):
     - could be refactored lateer.)
     """
 
-    def __init__(self, filerootdir):
-        self.filerootdir = os.path.realpath(filerootdir)
+    def __init__(self, fileroot):
+        self.fileroot = os.path.realpath(fileroot)
         self.readwritelock = Lock()
+        self._checkinput()
 
     def __call__(self, operation, path, *args):
         return super(NetCDFFUSE, self).__call__(
-            operation, self.filerootdir + path, *args)
+            operation, self.fileroot + path, *args)
+
+    def _checkinput(self):
+        try:
+            ncpy.Dataset(self.fileroot, "r")
+        except IOError as err:
+            print(err, "You must provide a path to a valid netCDF file")
+            print("Not a valid netCDF file: ", self.fileroot)
+            sys.exit(1)
 
     class NetCDFComponent:
         """
