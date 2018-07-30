@@ -10,7 +10,7 @@ class testFuseNetcdf(unittest.TestCase):
     def setUpClass(self):
         # Set up test file object
         self.PATH = "trial/ECMWF_ERA-40_subset.nc"
-        self.NCFILE = fnc.NetCDFFUSE.PotentialNetCDFFile(self.PATH)
+        self.NCFILE = fnc.NetCDFFUSE.NetCDFComponent(self.PATH)
 
     def test_testNetCDF(self):
         """
