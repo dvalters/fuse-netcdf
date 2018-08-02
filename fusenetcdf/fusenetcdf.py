@@ -488,7 +488,7 @@ def main():
     cmdline = parser.parse_args()
 
     netcdffuse = NetCDFFUSE(cmdline.ncpath)
-    fuse = FUSE(netcdffuse, cmdline.mountpoint, foreground=True, nothreads=True)
+    FUSE(netcdffuse, cmdline.mountpoint, foreground=True, nothreads=True)
 
 
 if __name__ == "__main__":
