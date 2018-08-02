@@ -472,18 +472,18 @@ def main():
     # Read commandline parameters, options
 
     parser = argparse.ArgumentParser(
-            description = 'Mount NetCDF filesystem',
-            prog ='fusenetcdf')
+            description='Mount NetCDF filesystem',
+            prog='fusenetcdf')
 
     parser.add_argument(
-            dest = 'ncpath',
-            metavar = 'NCFILE',
-            help = 'NetCDF file to be mounted')
+            dest='ncpath',
+            metavar='NCFILE',
+            help='NetCDF file to be mounted')
 
     parser.add_argument(
-            dest = 'mountpoint',
-            metavar = 'MOUNTPOINT',
-            help = 'mount point directory (must exist)')
+            dest='mountpoint',
+            metavar='MOUNTPOINT',
+            help='mount point directory (must exist)')
 
     cmdline = parser.parse_args()
 
