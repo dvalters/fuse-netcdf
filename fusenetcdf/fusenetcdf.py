@@ -18,8 +18,8 @@ from __future__ import with_statement, print_function
 
 import os
 import sys
-import netCDF4
 import netCDF4 as ncpy
+import argparse
 
 from fuse import FUSE, FuseOSError, Operations
 from threading import Lock
@@ -467,9 +467,29 @@ class NetCDFFUSE(Operations):
     readlink = os.readlink
 
 
+def main():
+
+    # Read commandline parameters, options
+
+    parser = argparse.ArgumentParser(
+            description='Mount NetCDF filesystem',
+            prog='fusenetcdf')
+
+    parser.add_argument(
+            dest='ncpath',
+            metavar='NCFILE',
+            help='NetCDF file to be mounted')
+
+    parser.add_argument(
+            dest='mountpoint',
+            metavar='MOUNTPOINT',
+            help='mount point directory (must exist)')
+
+    cmdline = parser.parse_args()
+
+    netcdffuse = NetCDFFUSE(cmdline.ncpath)
+    FUSE(netcdffuse, cmdline.mountpoint, foreground=True, nothreads=True)
+
+
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print("Usage: %s <netcdf file folder> <mountpoint>" % sys.argv[0])
-        sys.exit(1)
-    # fuse = FUSE(NetCDFFUSE(sys.argv[1]), sys.argv[2])
-    fuse = FUSE(NetCDFFUSE(sys.argv[1]), sys.argv[2], foreground=True)
+    main()
