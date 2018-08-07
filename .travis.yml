@@ -16,6 +16,8 @@ install:
  - pip install -r requirements.txt
 
 script:
- - python -m unittest test.test_fusenetcdf
+ - python -m unittest test.test_ncfs
  - py.test --pep8
 
+notifications:
+  email: false
