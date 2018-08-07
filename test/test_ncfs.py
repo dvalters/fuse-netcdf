@@ -133,3 +133,24 @@ class TestWrite(unittest.TestCase):
         self.assertRaises(AttributeError,
                           self.ds.variables['foovar'].getncattr,
                           'foovar')
+
+
+@unittest.skip
+class TestDimensions(unittest.TestCase):
+
+    def setUp(self):
+        self.ds = create_test_dataset_1()
+        self.ncfs = NCFS(self.ds, None, None)
+
+    def tearDown(self):
+        self.ds.close()
+
+    def test_reading_dimensions(self):
+        expected = 'x\ny\n'
+        self.assertMultiLineEqual(
+                self.ncfs.read('/foovar/fooattr/dimensions', 4, 0), expected)
+
+    def test_renaming_dimensions(self):
+        self.ncfs.write('/foovar/fooattr/dimensions', 'lon\nlat\n', 8, 0)
+        expected = (u'lon', u'lat')
+        self.assertEqual(self.ds.variables['foovar'].dimensions, expected)
