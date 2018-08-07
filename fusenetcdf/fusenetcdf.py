@@ -207,9 +207,10 @@ class NCFS(object):
         Set value of an attribute, given it's path.
         If attribute doesn't exist it will be created.
         """
+        stripped_value = value.rstrip()  # \n should be stripped by default
         attrname = self.get_attrname(path)
         var = self.get_variable(path)
-        var.setncattr(attrname, value)
+        var.setncattr(attrname, stripped_value)
 
     def del_var_attr(self, path):
         attrname = self.get_attrname(path)
