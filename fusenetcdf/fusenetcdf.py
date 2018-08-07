@@ -1,398 +1,379 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 """
-fuse-netcdf project
-
-This is the ESoWC project to create a mountable netcdf file
-in user space using the fusepy and python-netcdf libraries
-
-doc: http://www.ceda.ac.uk/static/media/uploads/ncas-reading-2015/
-       10_read_netcdf_python.pdf
-
-Thanks https://www.stavros.io/posts/python-fuse-filesystem/
-https://github.com/libfuse/python-fuse
-
+Exploring ideas for ESoWC project:
+https://github.com/dvalters/fuse-netcdf
 """
-from __future__ import with_statement, print_function
 
 import os
 import sys
 import netCDF4 as ncpy
+import re
+import time
+import numpy
+import inspect
 import argparse
-
+import logging as log
 from fuse import FUSE, FuseOSError, Operations
-from threading import Lock
 from errno import EACCES, ENOENT
-DEBUG = True
-DEBUG_LEVEL2 = False
-# DEBUG = True
 
 
-def attrs(name):
-    cur = os.lstat(name)
-    return dict((key, getattr(cur, key)) for key in (
-        'st_size', 'st_gid', 'st_uid',
-        'st_mode', 'st_mtime', 'st_atime', 'st_ctime', ))
+class InternalError(Exception):
+    pass
 
 
-def var_attr_name_to_str(var_attr_name, var):
-    """Converts the attribute string to the variable attribute
-    contents"""
-    if var_attr_name == "scale_factor":
-        return "%s\n" % var.scale_factor
-    if var_attr_name == "add_offset":
-        return "%s\n" % var.add_offset
-    if var_attr_name == "units":
-        return "%s\n" % var.units
-    if var_attr_name == "long_name":
-        return "%s\n" % var.long_name
-    if var_attr_name == "missing_value":
-        return "%s\n" % var.missing_value
-    if var_attr_name == "_FillValue":
-        return "%s\n" % var._FillValue
-    return None
+class NotFoundError(Exception):
+    pass
 
 
-class NetCDFFUSE(Operations):
-    """Inherit from the base fusepy Operations class
-
-    This is a wrapper class that contains a subclass for
-    mapping the netCDF file to filesystem operations.
-
-    (There is probably a more elegant way of doing this
-    - could be refactored lateer.)
+def memoize(function):
     """
+    Caching decorator; caches return
+    values of the decorated function.
+    """
+    memo = {}
 
-    def __init__(self, fileroot):
-        self.fileroot = os.path.realpath(fileroot)
-        self.readwritelock = Lock()
-        self._checkinput()
+    def wrapper(*args):
+        if args in memo:
+            return memo[args]
+        else:
+            rv = function(*args)
+            memo[args] = rv
+            return rv
+    return wrapper
 
-    def __call__(self, operation, path, *args):
-        return super(NetCDFFUSE, self).__call__(
-            operation, self.fileroot + path, *args)
 
-    def _checkinput(self):
+def write_to_string(string, buf, offset):
+    """
+    Implements someting like string[offset:offset+len(buf)] = buf
+    (which is not be possible as strings are immutable).
+    """
+    string = list(string)
+    buf = list(buf)
+    string[offset:offset+len(buf)] = buf
+    return ''.join(string)
+
+
+#
+# Data Representation plugins
+#
+
+
+class VardataAsBinaryFiles(object):
+
+    def __init__(self):
+        pass
+
+    def size(self, variable):
+        """ Return size (in bytes) of data representation """
+        return len(self(variable))
+
+    @memoize
+    def __call__(self, variable):
+        """ Return Variable's data representation """
+        data = variable[:].tobytes()
+        return data
+
+
+class VardataAsFlatTextFiles(object):
+
+    def __init__(self, fmt='%f'):
+        self._fmt = fmt
+
+    def size(self, variable):
+        """ Return size (in bytes) of data representation """
+        return len(self(variable))
+
+    @memoize
+    def __call__(self, variable):
+        """ Return Variable's data representation """
+        return ''.join(numpy.char.mod(
+            '{}\n'.format(self._fmt), variable[:].flatten()))
+
+
+class AttributesAsTextFiles(object):
+
+    def __init__(self):
+        pass
+
+    def size(self, attr):
+        return len(self(attr))
+
+    def __call__(self, attr):
+        """ Return array of bytes representing attribute's value """
+        s = str(attr)
+        # do not append a newline if attribute is
+        # empty or if it already ends with a newline
+        if not s or s[-1] == '\n':
+            return s
+        return s + '\n'
+
+
+#
+# NetCDF filesystem implementation
+#
+
+class NCFS(object):
+    """
+    Main object for netCDF-filesytem operations
+    """
+    def __init__(self, dataset, vardata_repr, attr_repr):
+        self.dataset = dataset
+        # plugin for generating Variable's data representations
+        self.vardata_repr = vardata_repr
+        # plugin for generation Atributes representations
+        self.attr_repr = attr_repr
+        # store mount time, for file timestamps
+        self.mount_time = time.time()
+
+    def is_var_dir(self, path):
+        """ Test if path is a valid Variable directory path """
+        return re.search('^/[^/]+$', path) is not None
+
+    def is_var_data(self, path):
+        """ Test if path is a vaild path to Variable data representation
+            TODO: data representation could be a file or a directory.
+        """
+        dirname, basename = os.path.split(path)
+        return self.is_var_dir(dirname) and basename == 'DATA_REPR'
+
+    def is_var_dimensions(self, path):
+        """ Test if path is a valid path for Variable's 'dimensions' file """
+        dirname, basename = os.path.split(path)
+        return self.is_var_dir(dirname) and basename == 'dimensions'
+
+    def is_var_attr(self, path):
+        """ Test if path is a valid path for Variable's Attribute """
+        if '.Trash' in path:
+            return False
+        if re.search('^/[^/]+/[^/]+$', path) is not None:
+            return not (self.is_var_data(path) or self.is_var_dimensions(path))
+
+    def exists(self, path):
+        """ Test if path exists """
+        if (self.is_var_dir(path) or
+                self.is_var_data(path) or
+                self.is_var_dimensions(path)):
+            return self.get_variable(path) is not None
+        elif self.is_var_attr(path):
+            return self.get_var_attr(path) is not None
+        elif path == '/':
+            return True
+        else:
+            return False
+
+    def is_dir(self, path):
+        """ Test if path corresponds to a directory-like object """
+        return self.is_var_dir(path) or path == '/'
+
+    def is_blacklisted(self, path):
+        """ Test if a special file/directory """
+        return '.Trash' in path
+
+    def is_file(self, path):
+        """ Test if path corresponds to a file-like object """
+        return not self.is_dir(path)
+
+    def get_varname(self, path):
+        """
+        Return NetCDF variable name, given its path.
+        The path can be variable, attribute, data repr or dimensions path
+        """
+        return path.lstrip('/').split('/', 1)[0]
+
+    def get_attrname(self, path):
+        """ Return attribute name, given its path """
+        return path.split('/')[-1]
+
+    def get_variable(self, path):
+        """ Return NetCDF Variable object, given its path, or None """
+        varname = self.get_varname(path)
+        return self.dataset.variables.get(varname, None)
+
+    def get_var_attr(self, path):
+        """ Return NetCDF Attribute object, given its path, or None """
+        varname = self.get_varname(path)
+        attrname = self.get_attrname(path)
+        var = self.dataset.variables.get(varname, None)
+        if var is None:
+            return None
         try:
-            ncpy.Dataset(self.fileroot, "r")
-        except IOError as err:
-            print(err, "You must provide a path to a valid netCDF file")
-            print("Not a valid netCDF file: ", self.fileroot)
-            sys.exit(1)
+            return var.getncattr(attrname)
+        except AttributeError:
+            return None
 
-    class NetCDFComponent:
+    def set_var_attr(self, path, value):
         """
-        Main object for performing operations on various
-        NetCDF file components, e.g. variable, global attrs,
-        variable attrs, etc.
+        Set value of an attribute, given it's path.
+        If attribute doesn't exist it will be created.
         """
-        def __init__(self, path):
-            self.fullpath = path
-            self.internalpath = "/"
-            self.dataset_handle = None
-            self.dataset_file = None
-            self.ncVars = None
+        attrname = self.get_attrname(path)
+        var = self.get_variable(path)
+        var.setncattr(attrname, value)
 
-            # Check that there is a netCDF file
-            if os.path.lexists(path):
-                self.testNetCDF(path)
-            else:
-                components = path.split("/")
-                for i in range(len(components), 0, -1):
-                    test = "/".join(components[:i])
-                    if self.testNetCDF(test):
-                        self.internalpath = "/".join(
-                            components[i - len(components):])
-                        if DEBUG:
-                            print(self.internalpath)
-                        break
-                        # Could handle this case better
-                        # I think it can be done better with
-                        # the os path methods
+    def del_var_attr(self, path):
+        attrname = self.get_attrname(path)
+        var = self.get_variable(path)
+        var.delncattr(attrname)
 
-        def testNetCDF(self, path):
-            """
-            Check if the path is a netCDF file.
-            """
-            if os.path.isfile(path):
-                try:
-                    # Also test for netCDF version here?
-                    self.dataset_handle = ncpy.Dataset(path, "r")
-                    self.dataset_file = path
-                    self.ncVars = self.getncVars(path)
-                    if DEBUG_LEVEL2:
-                        print(path + " is netCDF")
-                        print(self.dataset_handle.dimensions.keys())
-                        for key in self.dataset_handle.dimensions.keys():
-                            print(self.dataset_handle.dimensions[key])
-                        print(self.dataset_handle.variables.keys())
-                        for key in self.dataset_handle.variables.keys():
-                            var = self.dataset_handle.variables[key]
-                            print(key, var)
-                            print(var[:])
-                    return True
-                except AttributeError as e:
-                    print(e)
-                except RuntimeError as e:
-                    print(e)
-                except Exception as e:
-                    print(e)
-                    print(sys.exc_info()[0])
-                return False
+    def getncAttrs(self, path):
+        """ Return name of NetCDF attributes, given variable's path """
+        varname = self.get_varname(path)
+        attrs = self.dataset.variables[varname].ncattrs()
+        return [attr for attr in attrs]
 
-        def __del__(self):
-            if self.dataset_handle is not None:
-                try:
-                    self.dataset_handle.close()
-                except Exception as e:
-                    # needs a better soln!
-                    print(e)
-                    pass
+    @classmethod
+    def makeIntoDir(cls, statdict):
+        """Update the statdict if the item in the VFS should be
+        presented as a directory
+        """
+        statdict["st_mode"] = statdict["st_mode"] ^ 0o100000 | 0o040000
+        for i in [[0o400, 0o100], [0o40, 0o10], [0o4, 0o1]]:
+            if (statdict["st_mode"] & i[0]) != 0:
+                statdict["st_mode"] = statdict["st_mode"] | i[1]
+        return statdict
 
-        @classmethod
-        def makeIntoDir(cls, statdict):
-            """Update the statdict if the item in the VFS should be
-            presented as a directory
-            """
-            if DEBUG:
-                print("#MSG: Making a statdict to create a folder structure!")
-            statdict['st_mode'] = statdict['st_mode'] ^ 0o100000 | 0o040000
-            for i in [[0o400, 0o100], [0o40, 0o10], [0o4, 0o1]]:
-                if (statdict['st_mode'] & i[0]) != 0:
-                    statdict['st_mode'] = statdict['st_mode'] | i[1]
+    def getattr(self, path):
+        """The getattr callback is in charge of reading the metadata of a
+            given path, this callback is always called before any operation
+            made on the filesystem.
+
+        We are telling FUSE that the current entry is a file
+        or a directory using the stat struct.
+        In general, if the entry is a directory, st_mode have to be set
+        to S_IFDIR and st_nlink to 2, while if it is a file, st_mode have
+        to be set to S_IFREG (that stands for regular file) and st_nlink
+        to 1. Files also require that the st_size (the full file size) is
+        specified.
+        """
+        # default attributes, correspond to a regular file
+        statdict = dict(
+                st_atime=self.mount_time,
+                st_ctime=self.mount_time,
+                st_gid=os.getgid(),
+                st_mode=33188,  # file
+                st_mtime=self.mount_time,
+                st_nlink=1,
+                st_size=4096,
+                st_uid=os.getuid())
+        if path == "/":
+            statdict = self.makeIntoDir(statdict)
+        elif self.is_blacklisted(path):
             return statdict
+        elif not self.exists(path):
+            log.debug('getattr: %s does not exist' % path)
+            raise FuseOSError(ENOENT)
+        elif self.is_var_dir(path):
+            statdict = self.makeIntoDir(statdict)
+            statdict["st_size"] = 4096
+        elif self.is_var_attr(path):
+            attr = self.get_var_attr(path)
+            statdict["st_size"] = self.attr_repr.size(attr)
+        elif self.is_var_data(path):
+            var = self.get_variable(path)
+            statdict["st_size"] = self.vardata_repr.size(var)
+        else:
+            # this should never happen
+            raise InternalError('getattr: unexpected path {}'.format(path))
+        return statdict
 
-        def getattr(self):
-            """The getattr callback is in charge of reading the metadata of a
-                given path, this callback is always called before any operation
-                made on the filesystem.
+    def getxattr(self, name):
+        """ for now it is fake """
+        return 'foo'
 
-            We are telling FUSE that the current entry is a file
-            or a directory using the stat struct.
-            In general, if the entry is a directory, st_mode have to be set
-            to S_IFDIR and st_nlink to 2, while if it’s a file, st_mode have
-            to be set to S_IFREG (that stands for regular file) and st_nlink
-            to 1. Files also require that the st_size (the full file size) is
-            specified.
-            """
-            if self.dataset_file is not None:
-                st = os.lstat(self.dataset_file)
-            else:
-                st = os.lstat(self.fullpath)
-            statdict = dict((key, getattr(st, key)) for key in
-                            ('st_atime', 'st_ctime', 'st_gid', 'st_mode',
-                             'st_mtime', 'st_nlink',
-                             'st_size', 'st_uid'))
-            if self.dataset_file is None:
-                return statdict
-            if DEBUG:
-                print("NETCDF_FILE:    ", self.dataset_file)
-                print("INTERNALPATH: ", self.internalpath)
-            if self.internalpath == "/":
-                if DEBUG:
-                    print("at a filepath slash...")
-                statdict = self.makeIntoDir(statdict)
+    def removexattr(self, name):
+        return 0
 
-            # Are we at the top of the netCDF mountpoint?
-            elif self.internalpath == "":
-                if DEBUG:
-                    print("WE ARE AT THE TOP: ", self.internalpath)
-                statdict = self.makeIntoDir(statdict)
-                statdict['st_size'] = 4096
+    def readdir(self, path):
+        """Overrides readdir.
+        Called when ls or ll and any other unix command that relies
+        on this operation to work.
+        """
+        path = path.lstrip("/")
+        if path == "":
+            # Return a list of netCDF variables
+            return (['.', '..'] + [item.encode('utf-8')
+                    for item in self.dataset.variables])
+        elif path in self.dataset.variables:
+            local_attrs = self.getncAttrs(path)
+            return ['.', '..'] + local_attrs + ["DATA_REPR"]
+        else:
+            return ['.', '..']
 
-            # Are we at a variable?
-            elif self.internalpath in self.ncVars:
-                if DEBUG:
-                    print("WE ARE AT VARIABLE: ", self.internalpath)
-                statdict = self.makeIntoDir(statdict)
-                statdict['st_size'] = 4096
+    def access(self, mode):
+        if self.dataset_file is not None:
+            path = self.dataset_file
+            # If we can execute it, we should be able to read it too
+            if mode == os.X_OK:
+                mode = os.R_OK
+        if not os.access(path, mode):
+            raise FuseOSError(EACCES)
 
-            # Are these next two cases now actually doing the same thing?
-            elif "DATA_REPR" in self.internalpath:
-                if DEBUG:
-                    print("WE ARE INSIDE A VARIABLE DIR (WITH DATA_REPR): ",
-                          self.internalpath)
-                var = self.dataset_handle.variables[
-                    self.internalpath.split('/')[0]]
-                # res = "%s" % var[:]
-                res = repr(var[:])
-                statdict['st_size'] = len(res)  # 0
+    def open(self, path, flags):
+        if not self.is_file(path):
+            return ENOENT
+        return 0
 
-            # Are we inside a variable directory?
-            elif any(varbl in self.internalpath for varbl in self.ncVars):
-                # and '/' in self.internalpath:
-                # elif '/' in self.internalpath:
-                if DEBUG:
-                    print("WE ARE INSIDE A VARIABLE DIR: ", self.internalpath)
-                path, var_attr_name = self.internalpath.split('/')
-                if DEBUG:
-                    print("#MSG: var, attr: ", path, var_attr_name)
-                    print("#MSG: Available attrs: ",
-                          self.dataset_handle.variables[path].ncattrs())
-                # Check we are not trying to use a non-existent attribute
-                if (var_attr_name not in
-                        self.dataset_handle.variables[path].ncattrs()):
-                    print("ITEM NOT FOUND: ", var_attr_name, self.internalpath)
-                    raise FuseOSError(ENOENT)
+    def read(self, path, size, offset):
+        if self.is_var_attr(path):
+            attr = self.get_var_attr(path)
+            return self.attr_repr(attr)[offset:offset+size]
+        elif self.is_var_data(path):
+            var = self.get_variable(path)
+            return self.vardata_repr(var)[offset:offset+size]
+        else:
+            raise InternalError('read(): unexpected path %s' % path)
 
-                # Return the correct stat for a variable attribute
-                var = self.dataset_handle.variables[path]
-                res = var_attr_name_to_str(var_attr_name, var)
-                if res is not None:
-                    statdict['st_size'] = len(res)
-            else:
-                if DEBUG:
-                    print("ITEM NOT FOUND: ", self.internalpath)
-                raise FuseOSError(ENOENT)  # Is this correct return object?
-            return statdict
+    def create(self, path, mode):
+        if self.is_var_attr(path):
+            self.set_var_attr(path, '')
+        else:
+            raise InternalError('create(): unexpected path %s' % path)
+        return 0
 
-        def getxattr(self, name):
-            """
-            Gets the extended attributes for a file. See the linux programming
-            man pages for xattr.
-            """
-            return "foo"
-            '''
-            if self.dataset_handle is None:
-                return ""
-            rawname = name[5:]
-            if rawname in
-            return rawname
-            '''
+    def write(self, path, buf, offset, fh=0):
+        if self.is_var_attr(path):
+            attr = self.get_var_attr(path)
+            attr = write_to_string(attr, buf, offset)
+            self.set_var_attr(path, attr)
+            return len(buf)
+        else:
+            raise InternalError('write(): unexpected path %s' % path)
 
-        @classmethod
-        def getncVars(cls, ncfile):
-            """Returns the variables in a netcdf file"""
-            dset = ncpy.Dataset(ncfile, 'r')
-            return dset.variables
+    def unlink(self, path):
+        if self.is_var_attr(path):
+            self.del_var_attr(path)
+        else:
+            raise InternalError('unlink(): unexpected path %s' % path)
+        return 0
 
-        def getncAttrs(self, nc_var):
-            """Returns a list of attributes for a variable (nc_var)"""
-            attrs = self.dataset_handle.variables[nc_var].ncattrs()
-            if DEBUG:
-                print("# MSG: ATTRIBUTES: ", attrs)
-            return attrs
+    def close(self, fh):
+        pass
 
-        def getncAttribute(self, nc_attr):
-            """Return a string/bytes representation of a variable attribute"""
-            pass
 
-        def listdir(self):
-            return self.readdir()
+class NCFSOperations(Operations):
+    """Inherit from the base fusepy Operations class"""
 
-        def readdir(self):
-            """Overrides readdir.
-            Called when ls or ll and any other unix command that relies
-            on this operation to work.
-            """
-            if self.dataset_handle is None:
-                return (['.', '..'] +
-                        [name.encode('utf-8')
-                        for name in os.listdir(self.fullpath)])
-            elif self.internalpath == "":
-                # Return a list of netCDF variables
-                return (['.', '..'] + [item.encode('utf-8')
-                        for item in self.ncVars])
-            elif self.internalpath in self.ncVars:
-                if DEBUG:
-                    print("# MSG: GETTING ATTRIBUTES...")
-                local_attrs = self.getncAttrs(self.internalpath)
-                if DEBUG:
-                    print("# ATTRS: ", local_attrs)
-                return ['.', '..'] + local_attrs + ["DATA_REPR"]
-            else:
-                return ['.', '..']
+    def __getattribute__(self, name):
+        """ Intercept and print all method calls """
+        attr = object.__getattribute__(self, name)
+        if hasattr(attr, '__call__'):
+            def newfunc(*args, **kwargs):
+                func_args = [repr(x) for x in args]
+                func_kwargs = ['{}={}'.format(k, repr(v)) for k, v in kwargs]
+                func_args.extend(func_kwargs)
+                # print  name of the function and argument values
+                log.debug('{}({})'.format(name, ', '.join(func_args)))
+                result = attr(*args, **kwargs)
+                # print return value
+                # log.debug('{}() returned {}'.format(name, repr(result)))
+                return result
+            return newfunc
+        else:
+            return attr
 
-        def listxattr(self):
-            raise NotImplementedError()
-
-        def access(self, mode):
-            path = self.fullpath
-            if self.dataset_file is not None:
-                path = self.dataset_file
-                # If we can execute it, we should be able to read it too
-                if mode == os.X_OK:
-                    mode == os.R_OK
-            if not os.access(path, mode):
-                raise FuseOSError(EACCES)
-
-        def read(self, size, offset, fh, lock):
-            """
-            Called when FUSE is reading the data from an opened file.
-            So if we are opening a attribute file it should return
-            a text (bytes?) representation of the contents of that file/
-            """
-            if self.dataset_handle is None or self.internalpath == "/":
-                with lock:
-                    os.lseek(fh, offset, 0)
-                return os.read(fh, size)
-            # import pprint
-            # pp = pprint.PrettyPrinter(indent=4)
-            for ign in ("/.paths", "/.git", ".paths", ".git",
-                        # "/_FillValue",
-                        ):
-                if ign in self.internalpath:
-                    self.internalpath = self.internalpath.replace(ign, "")
-            var_attr_name = None
-            if '/' in self.internalpath:
-                self.internalpath, var_attr_name = self.internalpath.split('/')
-                print("# VARIABLE ATTRIBUTE NAME", var_attr_name)
-                # print(sys.exc_info()[0])
-            # pp.pformat(self.internalpath)
-            # pp.pformat(self.dataset_handle)
-            print("# READ", size, offset, fh)
-            print("# INTERNAL PATH", self.internalpath)
-            # if os.isatty(sys.stdout.fileno()):
-            # print("# DH ", self.dataset_handle)
-            # type 'netCDF4._netCDF4.Dataset'
-            var = self.dataset_handle.variables[self.internalpath]
-            res = "%s" % var
-            # print("# DH[]", res)
-            if var_attr_name is None:
-                return res
-            else:
-                # Return a basic representation of the data in variable
-                if var_attr_name == "DATA_REPR":
-                    res = ""
-                    for item in var:
-                        # res += "%s, " % item
-                        res += "\n" + repr(item)
-                    return res[offset:offset+size-1] + "\n"
-                if isinstance(var, netCDF4._netCDF4.Variable):
-                    res = var_attr_name_to_str(var_attr_name, var)
-                    if res is not None:
-                        return res
-                    try:
-                        res = getattr(var, var_attr_name)
-                        print("# try", res, var)
-                        return res[offset:offset + size-1] + "\n"
-                    # except AttributeError:
-                    except Exception as e:
-                        if DEBUG:
-                            print(e)
-                        print("# VARIABL ATTR NAME", var_attr_name)
-                        res = repr(var)
-                        return res[offset:offset + size-1] + "\n"
-                print("# TYP", type(var), type(var_attr_name))
-                return getattr(var, var_attr_name) + "\n"
-            if isinstance(var, ncpy.Dataset):
-                res = "%s" % self.dataset_handle[
-                        self.internalpath].value.tostring()[offset:offset+size]
-                return res[0:size - 2] + "\n"
-            return "empty-none"
-
-        def open(self, flags):
-            if self.dataset_handle is None or self.internalpath == "/":
-                res = os.open(self.fullpath, flags)
-                print("# ISATTY", res.isatty())
-                return res
-            return 0
-
-        def close(self, fh):
-            if self.dataset_handle is None or self.internalpath == "/":
-                return os.close(fh)
-            return 0
+    def __init__(self, ncfs):
+        self.ncfs = ncfs
 
     """These are the fusepy module methods that are overridden
     in this class. Any method not overridden here means that
@@ -404,40 +385,35 @@ class NetCDFFUSE(Operations):
 
     """
     def acccess(self, path, mode):
-        self.NetCDFComponent(path).access(mode)
+        self.ncfs.access(mode)
 
     def read(self, path, size, offset, fh):
-        return self.NetCDFComponent(path).read(
-            size, offset, fh, self.readwritelock)
+        return self.ncfs.read(path, size, offset)
+
+    def write(self, path, data, offset):
+        return self.ncfs.write(path, data, offset)
 
     def getattr(self, path, fh=None):
-        # List of system dirs to ignore when getting attrs
-        black = (
-            ".xdg-volume-info",
-            "/autorun", "/BDMV", "/AACS", "BDSVM", "/RCS", "/_strptime")
-        st = attrs('.')
-        for key in black:
-            if path == key or key in path:
-                return st
-        return self.NetCDFComponent(path).getattr()
+        return self.ncfs.getattr(path)
 
     def getxattr(self, path, name):
-        return self.NetCDFComponent(path).getxattr(name)
+        return self.ncfs.getxattr(name)
+
+    def removexattr(self, path, name):
+        return self.ncfs.removexattr(name)
 
     def listxattr(self, path):
-        return self.NetCDFComponent(path).listxattr()
+        return self.ncfs.listxattr()
 
     def readdir(self, path, fh):
-        # return self.NetCDFComponent(path).listdir()
-        return self.NetCDFComponent(path).readdir()
+        return self.ncfs.readdir(path)
 
     def release(self, path, fh):
-        return self.NetCDFComponent(path).close(fh)
+        return self.ncfs.close(fh)
 
     def statfs(self, path):
         # Need to think about this one some more...
         stv = os.statvfs(path)
-        # print("# DBG:", path, stv)
         return dict(
             (key, getattr(stv, key)) for key in (
              'f_bavail', 'f_bfree',
@@ -445,10 +421,24 @@ class NetCDFFUSE(Operations):
              'f_flag', 'f_frsize', 'f_namemax'))
 
     def open(self, path, flags):
-        return self.NetCDFComponent(path).open(flags)
+        return self.ncfs.open(path, flags)
 
-    truncate = None
-    write = None
+    def create(self, path, mode):
+        return self.ncfs.create(path, mode)
+
+    def write(self, path, buf, offset, fh):
+        return self.ncfs.write(path, buf, offset, fh)
+
+    def truncate(self, path, offset):
+        return 0
+
+    def unlink(self, path):
+        return self.ncfs.unlink(path)
+
+    def write_buf(self, path, buf, off, fh):
+        return 0
+
+    """
     rename = None
     symlink = None
     setxattr = None
@@ -457,19 +447,26 @@ class NetCDFFUSE(Operations):
     mkdir = None
     mknod = None
     rmdir = None
-    unlink = None
     chmod = None
     chown = None
     create = None
     fsync = None
     flush = None
-    utimens = os.utime
-    readlink = os.readlink
+    """
 
 
 def main():
+    """
+    This function is our Composition Root & we are using Pure DI (a.k.a.
+    Poor Man's DI) - Ideally, this is the only place where we create all
+    objects and wire everything together. This is the only place where
+    global config params and commandline params/options are needed.
 
-    # Read commandline parameters, options
+    http://blog.ploeh.dk/2011/07/28/CompositionRoot/ - great stuff
+    on how to keep everything decoupled and write unit-testable code.
+    """
+
+    # Read config file, commandline parameters, options
 
     parser = argparse.ArgumentParser(
             description='Mount NetCDF filesystem',
@@ -477,18 +474,46 @@ def main():
 
     parser.add_argument(
             dest='ncpath',
-            metavar='NCFILE',
+            metavar='PATH',
             help='NetCDF file to be mounted')
 
     parser.add_argument(
             dest='mountpoint',
-            metavar='MOUNTPOINT',
+            metavar='DIR',
             help='mount point directory (must exist)')
+
+    parser.add_argument(
+            '-v',
+            dest='verbosity_level',
+            action='count',
+            default=0,
+            help='be verbose (-vv for debug messages)')
 
     cmdline = parser.parse_args()
 
-    netcdffuse = NetCDFFUSE(cmdline.ncpath)
-    FUSE(netcdffuse, cmdline.mountpoint, foreground=True, nothreads=True)
+    # setup logging
+
+    if cmdline.verbosity_level == 0:
+        loglevel = log.ERROR
+    elif cmdline.verbosity_level == 1:
+        loglevel = log.INFO
+    else:
+        loglevel = log.DEBUG
+    log.basicConfig(format='%(message)s', level=loglevel)
+
+    # build the application
+
+    # open file for reading and writing
+    dataset = ncpy.Dataset(cmdline.ncpath, 'r+')
+    # create plugins for generating data and atribute representations
+    vardata_repr = VardataAsFlatTextFiles(fmt='%f')
+    attr_repr = AttributesAsTextFiles()
+    # create main object implementing NetCDF filesystem functionality
+    ncfs = NCFS(dataset, vardata_repr, attr_repr)
+    # create FUSE Operations (does it need to be a separate class?)
+    ncfs_operations = NCFSOperations(ncfs)
+    # launch!
+    FUSE(ncfs_operations, cmdline.mountpoint, nothreads=True, foreground=True)
 
 
 if __name__ == "__main__":
