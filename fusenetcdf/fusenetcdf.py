@@ -223,10 +223,13 @@ class NCFS(object):
         attrs = self.dataset.variables[varname].ncattrs()
         return [attr for attr in attrs]
 
-    def rename_var_attr(self, path, old, new):
+    def rename_var_attr(self, old, new):
         """ Renames a variable attribute """
-        cur_var = self.get_variable(path)
-        cur_var.renameAttribute(old, new)
+        cur_var = self.get_variable(old)
+        print cur_var
+        old_attr_name = self.get_attrname(old)
+        new_attr_name = self.get_attrname(new)
+        cur_var.renameAttribute(old_attr_name, new_attr_name)
 
     @classmethod
     def makeIntoDir(cls, statdict):
@@ -346,15 +349,16 @@ class NCFS(object):
         else:
             raise InternalError('write(): unexpected path %s' % path)
 
-    def rename(self, path, old, new):
+    def rename(self, old, new):
         """
         Rename a component of a netcdf variable
         """
-        if self.is_var_attr(path):
-            self.rename_var_attr(path, old, new)
+        if self.is_var_attr(old):
+            self.rename_var_attr(old, new)
         else:
             raise InternalError('rename(): not implemented for this op on %s'
                                 % path)
+        return 0
 
     def unlink(self, path):
         if self.is_var_attr(path):
@@ -445,8 +449,9 @@ class NCFSOperations(Operations):
     def write(self, path, buf, offset, fh):
         return self.ncfs.write(path, buf, offset, fh)
 
-    def rename(self, path, old, new):
-        return self.ncfs.rename(path, old, new)
+    def rename(self, old, new):
+        print "oldvar, newvar: ", old, new
+        return self.ncfs.rename(old, new)
 
     def truncate(self, path, offset):
         return 0
@@ -458,7 +463,6 @@ class NCFSOperations(Operations):
         return 0
 
     """
-    rename = None
     symlink = None
     setxattr = None
     removexattr = None
