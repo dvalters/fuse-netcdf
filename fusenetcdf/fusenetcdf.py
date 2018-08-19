@@ -450,7 +450,7 @@ class NCFSOperations(Operations):
         return self.ncfs.write(path, buf, offset, fh)
 
     def rename(self, old, new):
-        # log.debug("oldvar, newvar: ", old, new)
+        log.debug("RENAMING oldvar: {}, newvar: {}".format(old, new))
         return self.ncfs.rename(old, new)
 
     def truncate(self, path, offset):
