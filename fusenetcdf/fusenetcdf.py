@@ -226,7 +226,7 @@ class NCFS(object):
     def rename_var_attr(self, old, new):
         """ Renames a variable attribute """
         cur_var = self.get_variable(old)
-        print cur_var
+        # print cur_var
         old_attr_name = self.get_attrname(old)
         new_attr_name = self.get_attrname(new)
         cur_var.renameAttribute(old_attr_name, new_attr_name)
@@ -450,7 +450,7 @@ class NCFSOperations(Operations):
         return self.ncfs.write(path, buf, offset, fh)
 
     def rename(self, old, new):
-        print "oldvar, newvar: ", old, new
+        # log.debug("oldvar, newvar: ", old, new)
         return self.ncfs.rename(old, new)
 
     def truncate(self, path, offset):
