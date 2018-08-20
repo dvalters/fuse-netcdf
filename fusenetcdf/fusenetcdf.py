@@ -231,6 +231,14 @@ class NCFS(object):
         new_attr_name = self.get_attrname(new)
         cur_var.renameAttribute(old_attr_name, new_attr_name)
 
+    def rename_variable(self, old, new):
+        """Renames a variale (i.e. a directory)"""
+        # cur_var = self.get_variable(old)
+        # print(cur_var)
+        old_var_name = self.get_varname(old)
+        new_var_name = self.get_varname(new)
+        self.dataset.renameVariable(old_var_name, new_var_name)
+
     @classmethod
     def makeIntoDir(cls, statdict):
         """Update the statdict if the item in the VFS should be
@@ -353,16 +361,23 @@ class NCFS(object):
         """
         Rename a component of a netcdf variable
         """
+        # Rename a variable attribute
         if self.is_var_attr(old):
             self.rename_var_attr(old, new)
+        # Rename a variable
+        elif self.is_var_dir(old):
+            self.rename_variable(old, mew)
+        # Otherwise, inform that this is not implemented.
         else:
             raise InternalError('rename(): not implemented for this op on %s'
-                                % path)
+                                % old)
         return 0
 
     def unlink(self, path):
         if self.is_var_attr(path):
             self.del_var_attr(path)
+        elif self.is_var_dir(path):
+            raise InternalError('unlink(): does not support deleting variable')
         else:
             raise InternalError('unlink(): unexpected path %s' % path)
         return 0
@@ -450,7 +465,7 @@ class NCFSOperations(Operations):
         return self.ncfs.write(path, buf, offset, fh)
 
     def rename(self, old, new):
-        log.debug("RENAMING oldvar: {}, newvar: {}".format(old, new))
+        log.debug("RENAMING olditem: {}, newitem: {}".format(old, new))
         return self.ncfs.rename(old, new)
 
     def truncate(self, path, offset):
