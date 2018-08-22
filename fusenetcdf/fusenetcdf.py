@@ -239,6 +239,10 @@ class NCFS(object):
         new_var_name = self.get_varname(new)
         self.dataset.renameVariable(old_var_name, new_var_name)
 
+    def set_variable(self, newvariable):
+        """Creates a variable in the dataset if it does not exist"""
+        self.dataset.createVariable(newvariable, datatype='i')
+
     @classmethod
     def makeIntoDir(cls, statdict):
         """Update the statdict if the item in the VFS should be
@@ -347,6 +351,17 @@ class NCFS(object):
         else:
             raise InternalError('create(): unexpected path %s' % path)
         return 0
+
+    def mkdir(self, path, mode):
+        """Directories are variables in the ncfs"""
+        log.debug("Attempting mkdir with %s" % path)
+        if self.is_var_dir(path):
+            log.debug("is_dir_true!")
+            self.set_variable(path)   # pass data type here? (default is int)
+        else:
+            raise InternalError('create(): unexpected path %s' % path)
+        return 0
+            
 
     def write(self, path, buf, offset, fh=0):
         if self.is_var_attr(path):
