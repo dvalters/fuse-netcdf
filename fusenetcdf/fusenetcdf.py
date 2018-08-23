@@ -231,6 +231,18 @@ class NCFS(object):
         new_attr_name = self.get_attrname(new)
         cur_var.renameAttribute(old_attr_name, new_attr_name)
 
+    def rename_variable(self, old, new):
+        """Renames a variale (i.e. a directory)"""
+        # cur_var = self.get_variable(old)
+        # print(cur_var)
+        old_var_name = self.get_varname(old)
+        new_var_name = self.get_varname(new)
+        self.dataset.renameVariable(old_var_name, new_var_name)
+
+    def set_variable(self, newvariable):
+        """Creates a variable in the dataset if it does not exist"""
+        self.dataset.createVariable(newvariable, datatype='i')
+
     @classmethod
     def makeIntoDir(cls, statdict):
         """Update the statdict if the item in the VFS should be
@@ -340,6 +352,17 @@ class NCFS(object):
             raise InternalError('create(): unexpected path %s' % path)
         return 0
 
+    def mkdir(self, path, mode):
+        """Directories are variables in the ncfs"""
+        log.debug("Attempting mkdir with %s" % path)
+        if self.is_var_dir(path):
+            log.debug("is_dir_true!")
+            self.set_variable(path)   # pass data type here? (default is int)
+        else:
+            raise InternalError('Cannot create a variable (directory) here: %s'
+                                 % path)
+        return 0
+
     def write(self, path, buf, offset, fh=0):
         if self.is_var_attr(path):
             attr = self.get_var_attr(path)
@@ -353,16 +376,23 @@ class NCFS(object):
         """
         Rename a component of a netcdf variable
         """
+        # Rename a variable attribute
         if self.is_var_attr(old):
             self.rename_var_attr(old, new)
+        # Rename a variable
+        elif self.is_var_dir(old):
+            self.rename_variable(old, new)
+        # Otherwise, inform that this is not implemented.
         else:
             raise InternalError('rename(): not implemented for this op on %s'
-                                % path)
+                                % old)
         return 0
 
     def unlink(self, path):
         if self.is_var_attr(path):
             self.del_var_attr(path)
+        elif self.is_var_dir(path):
+            raise InternalError('unlink(): does not support deleting variable')
         else:
             raise InternalError('unlink(): unexpected path %s' % path)
         return 0
@@ -450,8 +480,12 @@ class NCFSOperations(Operations):
         return self.ncfs.write(path, buf, offset, fh)
 
     def rename(self, old, new):
-        log.debug("RENAMING oldvar: {}, newvar: {}".format(old, new))
+        log.debug("RENAMING olditem: {}, newitem: {}".format(old, new))
         return self.ncfs.rename(old, new)
+
+    def mkdir(self, path, mode):
+        log.debug("CREATING directory: {}".format(path))
+        return self.ncfs.mkdir(path, mode)
 
     def truncate(self, path, offset):
         return 0
