@@ -361,7 +361,7 @@ class NCFS(object):
         else:
             raise InternalError('Cannot create a variable (directory) here: %s'
                                  % path)
-        return 0 
+        return 0
 
     def write(self, path, buf, offset, fh=0):
         if self.is_var_attr(path):
