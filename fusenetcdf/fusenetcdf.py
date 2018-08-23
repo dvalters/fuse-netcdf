@@ -483,6 +483,10 @@ class NCFSOperations(Operations):
         log.debug("RENAMING olditem: {}, newitem: {}".format(old, new))
         return self.ncfs.rename(old, new)
 
+    def mkdir(self, path, mode):
+        log.debug("CREATING directory: {}".format(path))
+        return self.ncfs.mkdir(path, mode)
+
     def truncate(self, path, offset):
         return 0
 
