@@ -359,9 +359,9 @@ class NCFS(object):
             log.debug("is_dir_true!")
             self.set_variable(path)   # pass data type here? (default is int)
         else:
-            raise InternalError('create(): unexpected path %s' % path)
-        return 0
-            
+            raise InternalError('Cannot create a variable (directory) here: %s'
+                                 % path)
+        return 0 
 
     def write(self, path, buf, offset, fh=0):
         if self.is_var_attr(path):
@@ -381,7 +381,7 @@ class NCFS(object):
             self.rename_var_attr(old, new)
         # Rename a variable
         elif self.is_var_dir(old):
-            self.rename_variable(old, mew)
+            self.rename_variable(old, new)
         # Otherwise, inform that this is not implemented.
         else:
             raise InternalError('rename(): not implemented for this op on %s'
