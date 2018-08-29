@@ -1,8 +1,12 @@
 #!/usr/bin/env python
 
 """
-Exploring ideas for ESoWC project:
+Represent and manipulate contents of a NetCDF dataset
+using a filesystem metaphor.
+
 https://github.com/dvalters/fuse-netcdf
+
+Developed during ECMWF Summer of Weather Code (2018).
 """
 
 import os
@@ -109,6 +113,26 @@ class AttributesAsTextFiles(object):
         return s + '\n'
 
 
+class DimNamesAsTextFiles(object):
+
+    def __init__(self):
+        pass
+
+    def size(self, dimnames):
+        return len(self.encode(dimnames))
+
+    def encode(self, dimnames):
+        """ Return text representation of a list of dimension names"""
+        return ''.join([s + '\n' for s in dimnames])
+
+    def decode(self, dimnames_repr):
+        """ Convert text representation back to data """
+        if not dimnames_repr:
+            return []
+        return dimnames_repr.strip().split('\n')
+
+
+
 #
 # NetCDF filesystem implementation
 #
@@ -117,12 +141,14 @@ class NCFS(object):
     """
     Main object for netCDF-filesytem operations
     """
-    def __init__(self, dataset, vardata_repr, attr_repr):
+    def __init__(self, dataset, vardata_repr, attr_repr, dimnames_repr):
         self.dataset = dataset
         # plugin for generating Variable's data representations
         self.vardata_repr = vardata_repr
         # plugin for generation Atributes representations
         self.attr_repr = attr_repr
+        # plugin for generating a list of variable's dimensions
+        self.dimnames_repr = dimnames_repr
         # store mount time, for file timestamps
         self.mount_time = time.time()
 
@@ -138,9 +164,26 @@ class NCFS(object):
         return self.is_var_dir(dirname) and basename == 'DATA_REPR'
 
     def is_var_dimensions(self, path):
-        """ Test if path is a valid path for Variable's 'dimensions' file """
+        """ Test if path is a valid path for Variable's 'DIMENSIONS' file """
         dirname, basename = os.path.split(path)
-        return self.is_var_dir(dirname) and basename == 'dimensions'
+        return self.is_var_dir(dirname) and basename == 'DIMENSIONS'
+
+    def rename_dims_and_dimvars(self, old_names, new_names):
+        """ Rename dimensions and corresponding dimension variables """
+        # number of dimensions should remain the same;
+        # if it is different, print warning message and ignore the change.
+        if len(old_names) != len(new_names):
+            log.warn("number of dimensions of a variable cannot change")
+            raise ValueError(
+                    'old and new dimension list must have the same lenght')
+        for old_name, new_name in zip(old_names, new_names):
+            if new_name != old_name:
+                self.dataset.renameDimension(old_name, new_name)
+                try:
+                    # rename Dimension Variable (if exists)
+                    self.dataset.renameVariable(old_name, new_name)
+                except KeyError:
+                    pass
 
     def is_var_attr(self, path):
         """ Test if path is a valid path for Variable's Attribute """
@@ -202,6 +245,14 @@ class NCFS(object):
         except AttributeError:
             return None
 
+    def get_var_dimnames(self, path):
+        """ Return NetCDF Variable Dimensions """
+        varname = self.get_varname(path)
+        var = self.dataset.variables.get(varname, None)
+        if var is None:
+            return None
+        return var.dimensions
+
     def set_var_attr(self, path, value):
         """
         Set value of an attribute, given it's path.
@@ -238,6 +289,10 @@ class NCFS(object):
         old_var_name = self.get_varname(old)
         new_var_name = self.get_varname(new)
         self.dataset.renameVariable(old_var_name, new_var_name)
+        # if this is a Dimension Variable,
+        # also rename corresponding dimension
+        if old_var_name in self.dataset.dimensions:
+            self.dataset.renameDimension(old_var_name, new_var_name)
 
     def set_variable(self, newvariable):
         """Creates a variable in the dataset if it does not exist"""
@@ -293,6 +348,9 @@ class NCFS(object):
         elif self.is_var_data(path):
             var = self.get_variable(path)
             statdict["st_size"] = self.vardata_repr.size(var)
+        elif self.is_var_dimensions(path):
+            dimnames = self.get_var_dimnames(path)
+            statdict["st_size"] = self.dimnames_repr.size(dimnames)
         else:
             # this should never happen
             raise InternalError('getattr: unexpected path {}'.format(path))
@@ -317,7 +375,7 @@ class NCFS(object):
                     for item in self.dataset.variables])
         elif path in self.dataset.variables:
             local_attrs = self.getncAttrs(path)
-            return ['.', '..'] + local_attrs + ["DATA_REPR"]
+            return ['.', '..'] + local_attrs + ["DATA_REPR"] + ["DIMENSIONS"]
         else:
             return ['.', '..']
 
@@ -342,6 +400,9 @@ class NCFS(object):
         elif self.is_var_data(path):
             var = self.get_variable(path)
             return self.vardata_repr(var)[offset:offset+size]
+        elif self.is_var_dimensions(path):
+            dimnames = self.get_var_dimnames(path)
+            return self.dimnames_repr.encode(dimnames)[offset:offset+size]
         else:
             raise InternalError('read(): unexpected path %s' % path)
 
@@ -360,7 +421,7 @@ class NCFS(object):
             self.set_variable(path)   # pass data type here? (default is int)
         else:
             raise InternalError('Cannot create a variable (directory) here: %s'
-                                 % path)
+                                % path)
         return 0
 
     def write(self, path, buf, offset, fh=0):
@@ -368,6 +429,20 @@ class NCFS(object):
             attr = self.get_var_attr(path)
             attr = write_to_string(attr, buf, offset)
             self.set_var_attr(path, attr)
+            return len(buf)
+        elif self.is_var_dimensions(path):
+            old_dimnames = self.get_var_dimnames(path)
+            # generate string representation of existing dimesion names
+            new_dimnames_repr = self.dimnames_repr.encode(old_dimnames)
+            # update (part of) string representation of dimension names
+            new_dimnames_repr = write_to_string(new_dimnames_repr, buf, offset)
+            # convert updated string representation back to list of names
+            new_dimnames = self.dimnames_repr.decode(new_dimnames_repr)
+            try:
+                self.rename_dims_and_dimvars(old_dimnames, new_dimnames)
+            except ValueError:
+                # ignore invalid edit
+                pass
             return len(buf)
         else:
             raise InternalError('write(): unexpected path %s' % path)
@@ -562,11 +637,12 @@ def main():
 
     # open file for reading and writing
     dataset = ncpy.Dataset(cmdline.ncpath, 'r+')
-    # create plugins for generating data and atribute representations
+    # create plugins for generating data, atribute, dimension representations
     vardata_repr = VardataAsFlatTextFiles(fmt='%f')
     attr_repr = AttributesAsTextFiles()
+    dimnames_repr = DimNamesAsTextFiles()
     # create main object implementing NetCDF filesystem functionality
-    ncfs = NCFS(dataset, vardata_repr, attr_repr)
+    ncfs = NCFS(dataset, vardata_repr, attr_repr, dimnames_repr)
     # create FUSE Operations (does it need to be a separate class?)
     ncfs_operations = NCFSOperations(ncfs)
     # launch!
