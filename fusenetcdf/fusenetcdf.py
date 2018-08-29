@@ -217,11 +217,20 @@ class NCFS(object):
         var = self.get_variable(path)
         var.delncattr(attrname)
 
+    def getncVariables(self):
+        """ Return the names of NetCDF variables in the file"""
+        return [item.encode('utf-8') for item in self.dataset.variables])
+
     def getncAttrs(self, path):
         """ Return name of NetCDF attributes, given variable's path """
         varname = self.get_varname(path)
         attrs = self.dataset.variables[varname].ncattrs()
         return [attr for attr in attrs]
+
+    def getncGlobalAttrs(self, path):
+        """ Return the name of the global attributes"""
+        glob_attrs = self.dataset.ncattrs()
+        return [glob_attr.encode('utf-8') for glob_attr in glob_attrs]
 
     def rename_var_attr(self, old, new):
         """ Renames a variable attribute """
@@ -311,10 +320,13 @@ class NCFS(object):
         on this operation to work.
         """
         path = path.lstrip("/")
+        # If we are in the top-level directory of the mountpoint:
         if path == "":
-            # Return a list of netCDF variables
-            return (['.', '..'] + [item.encode('utf-8')
-                    for item in self.dataset.variables])
+            # Get a list of netCDF variables and the global attrs
+            all_variables = self.getncVariables()
+            global_attributes = self.getncGlobalAttrs()
+            return (['.', '..'] + all_variables + global_attributes
+        # If we are in a variable directory
         elif path in self.dataset.variables:
             local_attrs = self.getncAttrs(path)
             return ['.', '..'] + local_attrs + ["DATA_REPR"]
