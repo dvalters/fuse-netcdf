@@ -436,6 +436,11 @@ class NCFS(object):
             attr = write_to_string(attr, buf, offset)
             self.set_var_attr(path, attr)
             return len(buf)
+        elif self.is_global_attr(path):
+            glob_attr = self.get_global_attr(path)
+            glob_attr = write_to_string(glob_attr, buf, offset)
+            self.set_global_attr(path, glob_attr)
+            return len(buf)
         else:
             raise InternalError('write(): unexpected path %s' % path)
 
