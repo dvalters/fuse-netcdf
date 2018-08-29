@@ -280,6 +280,12 @@ class NCFS(object):
         new_attr_name = self.get_attrname(new)
         cur_var.renameAttribute(old_attr_name, new_attr_name)
 
+    def rename_global_attr(self, old, new):
+        """ Renames a global attribute """
+        old_attr_name = self.get_global_attr_name(old)
+        new_attr_name = self.get_global_attr_name(new)
+        self.dataset.renameAttribute(old_attr_name, new_attr_name)
+
     def rename_variable(self, old, new):
         """Renames a variale (i.e. a directory)"""
         # cur_var = self.get_variable(old)
@@ -443,6 +449,8 @@ class NCFS(object):
         # Rename a variable
         elif self.is_var_dir(old):
             self.rename_variable(old, new)
+        elif self.is_global_attr(old):
+            self.rename_global_attr(old, new)
         # Otherwise, inform that this is not implemented.
         else:
             raise InternalError('rename(): not implemented for this op on %s'
