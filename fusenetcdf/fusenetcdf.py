@@ -158,7 +158,8 @@ class NCFS(object):
         """ Test if path is a valid path for a Dataset's Global Attributes"""
         potential_glob_attr = self.get_global_attr_name(path)
         log.debug("Checking if global attr: {}".format(potential_glob_attr))
-        if potential_glob_attr in self.getncGlobalAttrs():
+        # if potential_glob_attr in self.getncGlobalAttrs():
+        if potential_glob_attr not in self.getncVariables():
             log.debug("Checking if global attr {} in Dataset".format(
                       potential_glob_attr))
             return re.search('^/[^/]+$', path) is not None
@@ -245,6 +246,11 @@ class NCFS(object):
         attrname = self.get_attrname(path)
         var = self.get_variable(path)
         var.setncattr(attrname, stripped_value)
+
+    def set_global_attr(self, path, value):
+        stripped_value = value.rstrip()  # \n should be stripped by default
+        glob_attrname = self.get_global_attr_name(path)
+        self.dataset.setncattr(glob_attrname, stripped_value)
 
     def del_var_attr(self, path):
         attrname = self.get_attrname(path)
@@ -389,6 +395,9 @@ class NCFS(object):
         if self.is_var_attr(path):
             attr = self.get_var_attr(path)
             return self.attr_repr(attr)[offset:offset+size]
+        elif self.is_global_attr(path):
+            glob_attr = self.get_global_attr(path)
+            return self.attr_repr(glob_attr)[offset:offset+size]
         elif self.is_var_data(path):
             var = self.get_variable(path)
             return self.vardata_repr(var)[offset:offset+size]
@@ -398,6 +407,8 @@ class NCFS(object):
     def create(self, path, mode):
         if self.is_var_attr(path):
             self.set_var_attr(path, '')
+        elif self.is_global_attr(path):
+            self.set_global_attr(path, '')
         else:
             raise InternalError('create(): unexpected path %s' % path)
         return 0
