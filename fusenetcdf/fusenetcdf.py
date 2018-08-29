@@ -132,7 +132,6 @@ class DimNamesAsTextFiles(object):
         return dimnames_repr.strip().split('\n')
 
 
-
 #
 # NetCDF filesystem implementation
 #
