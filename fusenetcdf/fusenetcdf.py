@@ -128,7 +128,12 @@ class NCFS(object):
 
     def is_var_dir(self, path):
         """ Test if path is a valid Variable directory path """
-        return re.search('^/[^/]+$', path) is not None
+        potential_vardir = self.get_varname(path)
+        # Don't return True if it is a Global Attribute
+        if potential_vardir not in self.getncGlobalAttrs():
+            return re.search('^/[^/]+$', path) is not None
+        else:
+            return False
 
     def is_var_data(self, path):
         """ Test if path is a vaild path to Variable data representation
@@ -149,12 +154,26 @@ class NCFS(object):
         if re.search('^/[^/]+/[^/]+$', path) is not None:
             return not (self.is_var_data(path) or self.is_var_dimensions(path))
 
+    def is_global_attr(self, path):
+        """ Test if path is a valid path for a Dataset's Global Attributes"""
+        potential_glob_attr = self.get_global_attr_name(path)
+        log.debug("Checking if global attr: {}".format(potential_glob_attr))
+        if potential_glob_attr in self.getncGlobalAttrs():
+            log.debug("Checking if global attr {} in Dataset".format(
+                      potential_glob_attr))
+            return re.search('^/[^/]+$', path) is not None
+        else:
+            return False
+
     def exists(self, path):
         """ Test if path exists """
         if (self.is_var_dir(path) or
                 self.is_var_data(path) or
                 self.is_var_dimensions(path)):
             return self.get_variable(path) is not None
+        elif self.is_global_attr(path):
+            log.debug("Exists method: Checking glob attr {}".format(path))
+            return self.get_global_attr(path) is not None
         elif self.is_var_attr(path):
             return self.get_var_attr(path) is not None
         elif path == '/':
@@ -181,6 +200,13 @@ class NCFS(object):
         """
         return path.lstrip('/').split('/', 1)[0]
 
+    def get_global_attr_name(self, path):
+        """
+        Return NetCDF global attribute name, given its path.
+        The path can be variable, attribute, data repr or dimensions path
+        """
+        return path.lstrip('/').split('/', 1)[0]
+
     def get_attrname(self, path):
         """ Return attribute name, given its path """
         return path.split('/')[-1]
@@ -189,6 +215,14 @@ class NCFS(object):
         """ Return NetCDF Variable object, given its path, or None """
         varname = self.get_varname(path)
         return self.dataset.variables.get(varname, None)
+
+    def get_global_attr(self, path):
+        """Return global attribute"""
+        global_attr_name = self.get_global_attr_name(path)
+        try:
+            return self.dataset.getncattr(global_attr_name)
+        except AttributeError:
+            return None
 
     def get_var_attr(self, path):
         """ Return NetCDF Attribute object, given its path, or None """
@@ -219,7 +253,7 @@ class NCFS(object):
 
     def getncVariables(self):
         """ Return the names of NetCDF variables in the file"""
-        return [item.encode('utf-8') for item in self.dataset.variables])
+        return [item.encode('utf-8') for item in self.dataset.variables]
 
     def getncAttrs(self, path):
         """ Return name of NetCDF attributes, given variable's path """
@@ -227,8 +261,8 @@ class NCFS(object):
         attrs = self.dataset.variables[varname].ncattrs()
         return [attr for attr in attrs]
 
-    def getncGlobalAttrs(self, path):
-        """ Return the name of the global attributes"""
+    def getncGlobalAttrs(self):
+        """ Return a list of the Dataset's global attributes"""
         glob_attrs = self.dataset.ncattrs()
         return [glob_attr.encode('utf-8') for glob_attr in glob_attrs]
 
@@ -302,6 +336,10 @@ class NCFS(object):
         elif self.is_var_data(path):
             var = self.get_variable(path)
             statdict["st_size"] = self.vardata_repr.size(var)
+        elif self.is_global_attr(path):
+            # make sensible statdict entry for global attrs
+            global_attr = self.get_global_attr(path)
+            statdict["st_size"] = self.attr_repr.size(global_attr)
         else:
             # this should never happen
             raise InternalError('getattr: unexpected path {}'.format(path))
@@ -325,7 +363,7 @@ class NCFS(object):
             # Get a list of netCDF variables and the global attrs
             all_variables = self.getncVariables()
             global_attributes = self.getncGlobalAttrs()
-            return (['.', '..'] + all_variables + global_attributes
+            return (['.', '..'] + all_variables + global_attributes)
         # If we are in a variable directory
         elif path in self.dataset.variables:
             local_attrs = self.getncAttrs(path)
