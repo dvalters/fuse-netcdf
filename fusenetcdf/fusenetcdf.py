@@ -115,21 +115,24 @@ class AttributesAsTextFiles(object):
 
 class DimNamesAsTextFiles(object):
 
-    def __init__(self):
-        pass
+    def __init__(self, sep='\n'):
+        self._sep = sep
 
     def size(self, dimnames):
         return len(self.encode(dimnames))
 
     def encode(self, dimnames):
         """ Return text representation of a list of dimension names"""
-        return ''.join([s + '\n' for s in dimnames])
+        s = self._sep.join(dimnames)
+        if not s or s[-1] == '\n':
+            return s
+        return s + '\n'
 
     def decode(self, dimnames_repr):
         """ Convert text representation back to data """
         if not dimnames_repr:
             return []
-        return dimnames_repr.strip().split('\n')
+        return dimnames_repr.strip().split(self._sep)
 
 
 #

@@ -156,35 +156,46 @@ class TestWrite(unittest.TestCase):
 class TestDimNamesAsTextFiles(unittest.TestCase):
 
     def setUp(self):
-        self.dimnames_repr = DimNamesAsTextFiles()
+        self.mapping = DimNamesAsTextFiles()
 
     def test_encode(self):
         dimnames = [u'longitude', u'latitude', u'time']
         expected_repr = 'longitude\nlatitude\ntime\n'
         self.assertMultiLineEqual(
-                self.dimnames_repr.encode(dimnames), expected_repr)
+                self.mapping.encode(dimnames), expected_repr)
+
+    def test_encode_with_custom_separator(self):
+        mapping = DimNamesAsTextFiles(sep=', ')
+        dimnames = [u'longitude', u'latitude', u'time']
+        expected_repr = 'longitude, latitude, time\n'
+        self.assertMultiLineEqual(mapping.encode(dimnames), expected_repr)
 
     def test_encode_empty_list(self):
         dimnames = []
         expected_repr = ''
         self.assertMultiLineEqual(
-                self.dimnames_repr.encode(dimnames), expected_repr)
+                self.mapping.encode(dimnames), expected_repr)
 
     def test_decode(self):
         dimnames_repr = 'longitude\nlatitude\ntime\n'
         expected_dimnames = [u'longitude', u'latitude', u'time']
         self.assertEqual(
-                self.dimnames_repr.decode(dimnames_repr), expected_dimnames)
+                self.mapping.decode(dimnames_repr), expected_dimnames)
+
+    def test_decode_with_custom_separator(self):
+        mapping = DimNamesAsTextFiles(sep=', ')
+        dimnames_repr = 'longitude, latitude, time\n'
+        expected_dimnames = [u'longitude', u'latitude', u'time']
+        self.assertEqual(mapping.decode(dimnames_repr), expected_dimnames)
 
     def test_decode_empty_string(self):
         dimnames_repr = ''
         expected_dimnames = []
-        self.assertEqual(
-                self.dimnames_repr.decode(dimnames_repr), expected_dimnames)
+        self.assertEqual(self.mapping.decode(dimnames_repr), expected_dimnames)
 
     def test_size(self):
         dimnames = [u'x', u'y', u'z']
-        self.assertEqual(self.dimnames_repr.size(dimnames), 6)
+        self.assertEqual(self.mapping.size(dimnames), 6)
 
 
 class TestDimensions(unittest.TestCase):
