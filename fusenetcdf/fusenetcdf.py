@@ -175,6 +175,10 @@ class NCFS(object):
         dirname, basename = os.path.split(path)
         return self.is_var_dir(dirname) and basename == 'DIMENSIONS'
 
+    def is_dimesnion_variable(self, path):
+        """ Test if given path is a dimension variable e.g. lon/lat """
+        pass
+
     def rename_dims_and_dimvars(self, old_names, new_names):
         """ Rename dimensions and corresponding dimension variables """
         # number of dimensions should remain the same;
@@ -520,6 +524,9 @@ class NCFS(object):
                 # ignore invalid edit
                 pass
             return len(buf)
+        elif self.is_dimension_variable(path):
+            # Let us modify the varible dimensions
+            pass
         else:
             raise InternalError('write(): unexpected path %s' % path)
 
