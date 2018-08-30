@@ -551,6 +551,11 @@ class NCFS(object):
         else:
             raise InternalError('write(): unexpected path %s' % path)
 
+    def truncate(self, path, offset):
+        """ Truncate a file that is being writtem to, i.e. when
+        removing lines etc."""
+        return 0
+
     def rename(self, old, new):
         """
         Rename a component of a netcdf variable
@@ -670,13 +675,18 @@ class NCFSOperations(Operations):
         log.debug("CREATING directory: {}".format(path))
         return self.ncfs.mkdir(path, mode)
 
-    def truncate(self, path, offset):
+    def truncate(self, path, offset, fh):
+        """Used when shortening files etc. (I.e. removing lines) """
+        #return self.ncfs.truncate(path, offset)
         return 0
 
     def unlink(self, path):
         return self.ncfs.unlink(path)
 
     def write_buf(self, path, buf, off, fh):
+        return 0
+
+    def chmod(self, path, mode):
         return 0
 
     """
