@@ -4,10 +4,26 @@ from netCDF4 import Dataset
 from fusenetcdf.fusenetcdf import DimNamesAsTextFiles
 
 
+class FakeVariable(object):
+    def getncattr(self, name):
+        if name == 'fooattr':
+            return 'bar'
+        else:
+            raise AttributeError()
+
+
+class FakeDataset(object):
+
+    variables = {'foovar': FakeVariable()}
+
+    def ncattrs(self):
+        return {'attr1': 'val1', 'attr2': 'val2'}
+
+
 class TestIsVarDir(unittest.TestCase):
 
     def setUp(self):
-        self.ncfs = NCFS(None, None, None, None)
+        self.ncfs = NCFS(FakeDataset(), None, None, None)
 
     def test_is_var_dir_1(self):
         self.assertTrue(self.ncfs.is_var_dir('/abcd'))
@@ -25,7 +41,7 @@ class TestIsVarDir(unittest.TestCase):
 class TestIsVarData(unittest.TestCase):
 
     def setUp(self):
-        self.ncfs = NCFS(None, None, None, None)
+        self.ncfs = NCFS(FakeDataset(), None, None, None)
 
     def test_is_var_data_1(self):
         self.assertFalse(self.ncfs.is_var_data('/abcd'))
@@ -43,7 +59,7 @@ class TestIsVarData(unittest.TestCase):
 class TestIsVarAttribute(unittest.TestCase):
 
     def setUp(self):
-        self.ncfs = NCFS(None, None, None, None)
+        self.ncfs = NCFS(FakeDataset(), None, None, None)
 
     def test_is_var_attr_1(self):
         self.assertFalse(self.ncfs.is_var_attr('/abcd'))
@@ -64,7 +80,7 @@ class TestIsVarAttribute(unittest.TestCase):
 class TestIsVariableDimensions(unittest.TestCase):
 
     def setUp(self):
-        self.ncfs = NCFS(None, None, None, None)
+        self.ncfs = NCFS(FakeDataset(), None, None, None)
 
     def test_is_var_dimensions_1(self):
         self.assertTrue(self.ncfs.is_var_dimensions('/abcd/DIMENSIONS'))
@@ -73,23 +89,10 @@ class TestIsVariableDimensions(unittest.TestCase):
         self.assertFalse(self.ncfs.is_var_dimensions('/abcd/DATA_REPR'))
 
 
-class FakeVariable(object):
-    def getncattr(self, name):
-        if name == 'fooattr':
-            return 'bar'
-        else:
-            raise AttributeError()
-
-
-class FakeDataset(object):
-    variables = {'foovar': FakeVariable()}
-
-
 class TestExists(unittest.TestCase):
 
     def setUp(self):
-        dataset = FakeDataset()
-        self.ncfs = NCFS(dataset, None, None, None)
+        self.ncfs = NCFS(FakeDataset(), None, None, None)
 
     def test_exists_1(self):
         self.assertTrue(self.ncfs.exists('/foovar'))
