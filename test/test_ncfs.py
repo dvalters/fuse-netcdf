@@ -13,7 +13,9 @@ class FakeVariable(object):
 
 
 class FakeDataset(object):
+
     variables = {'foovar': FakeVariable()}
+
     def ncattrs(self):
         return {'attr1': 'val1', 'attr2': 'val2'}
 
