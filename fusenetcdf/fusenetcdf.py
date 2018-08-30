@@ -677,7 +677,7 @@ class NCFSOperations(Operations):
 
     def truncate(self, path, offset, fh):
         """Used when shortening files etc. (I.e. removing lines) """
-        #return self.ncfs.truncate(path, offset)
+        # return self.ncfs.truncate(path, offset)
         return 0
 
     def unlink(self, path):
