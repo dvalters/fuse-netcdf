@@ -194,21 +194,24 @@ class NCFS(object):
         """ Test if path corresponds to a file-like object """
         return not self.is_dir(path)
 
-    def get_varname(self, path):
+    @classmethod
+    def get_varname(cls, path):
         """
         Return NetCDF variable name, given its path.
         The path can be variable, attribute, data repr or dimensions path
         """
         return path.lstrip('/').split('/', 1)[0]
 
-    def get_global_attr_name(self, path):
+    @classmethod
+    def get_global_attr_name(cls, path):
         """
         Return NetCDF global attribute name, given its path.
         The path can be variable, attribute, data repr or dimensions path
         """
         return path.lstrip('/').split('/', 1)[0]
 
-    def get_attrname(self, path):
+    @classmethod
+    def get_attrname(cls, path):
         """ Return attribute name, given its path """
         return path.split('/')[-1]
 
