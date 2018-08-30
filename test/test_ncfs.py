@@ -238,10 +238,22 @@ class TestDimensions(unittest.TestCase):
         expected = (u'x', u'y')
         self.assertEqual(self.ds.variables['foovar'].dimensions, expected)
 
-    def test_renamin_dimension_variable(self):
+    def test_renaming_dimension_variable(self):
         self.ncfs.rename('/x', 'lon')
         # did renaming Dimension Variable also renamed corresponding Dimension?
         self.assertFalse('x' in self.ds.variables)
         self.assertTrue('lon' in self.ds.variables)
         self.assertFalse('x' in self.ds.dimensions)
         self.assertTrue('lon' in self.ds.dimensions)
+
+    def test_swapping_dimension_names(self):
+        self.ncfs.write('/foovar/DIMENSIONS', 'y\nx\n', 0, 0)
+        self.assertEqual(self.ds.variables['foovar'].dimensions, (u'y', u'x'))
+        # did the 'x' Dimension Variable name change to 'y' ?
+        self.assertFalse('x' in self.ds.variables)
+        self.assertTrue('y' in self.ds.variables)
+
+    def test_duplicate_names(self):
+        self.ncfs.write('/foovar/DIMENSIONS', 'y\ny\n', 0, 0)
+        # was this edit ignored?
+        self.assertEqual(self.ds.variables['foovar'].dimensions, (u'x', u'y'))

@@ -175,22 +175,45 @@ class NCFS(object):
         dirname, basename = os.path.split(path)
         return self.is_var_dir(dirname) and basename == 'DIMENSIONS'
 
+    def rename_dim_and_dimvar(self, old_name, new_name):
+        if new_name == old_name:
+            return
+        self.dataset.renameDimension(old_name, new_name)
+        try:
+            # rename Dimension Variable (if exists)
+            self.dataset.renameVariable(old_name, new_name)
+        except KeyError:
+            pass
+
     def rename_dims_and_dimvars(self, old_names, new_names):
         """ Rename dimensions and corresponding dimension variables """
-        # number of dimensions should remain the same;
-        # if it is different, print warning message and ignore the change.
+        # number of dimensions should remain the same; if it is
+        # different, print warning message and abort renaming.
         if len(old_names) != len(new_names):
             log.warn("number of dimensions of a variable cannot change")
             raise ValueError(
                     'old and new dimension list must have the same lenght')
-        for old_name, new_name in zip(old_names, new_names):
-            if new_name != old_name:
-                self.dataset.renameDimension(old_name, new_name)
-                try:
-                    # rename Dimension Variable (if exists)
-                    self.dataset.renameVariable(old_name, new_name)
-                except KeyError:
-                    pass
+        # Simulate renaming to check if it results in duplicates.
+        # This would cause NetCDF to abort; instead we cancel renaming.
+        # We also add temporary prefix to dimension names
+        # - otherwise SWAPPING dimension names would not work.
+        # Maybe there's a better way to do it...
+        dimnames = [x for x in self.dataset.dimensions]
+        for old in old_names:
+            dimnames = [
+                    'RENAMING_' + x if x == old else x for x in dimnames]
+        old_names_tmp = ['RENAMING_' + x for x in old_names]
+        for old, new in zip(old_names_tmp, new_names):
+            dimnames = [new if x == old else x for x in dimnames]
+        # Check for duplicates; abort renaming if duplicates found
+        if len(dimnames) != len(set(dimnames)):
+            raise ValueError(
+                    'renaming would result in duplicated dimension names')
+        # Renaming is safe - do it.
+        for old in old_names:
+            self.rename_dim_and_dimvar(old, 'RENAMING_' + old)
+        for old, new in zip(old_names_tmp, new_names):
+            self.rename_dim_and_dimvar(old, new)
 
     def is_var_attr(self, path):
         """ Test if path is a valid path for Variable's Attribute """
