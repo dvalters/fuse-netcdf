@@ -156,7 +156,12 @@ class NCFS(object):
 
     def is_var_dir(self, path):
         """ Test if path is a valid Variable directory path """
-        return re.search('^/[^/]+$', path) is not None
+        potential_vardir = self.get_varname(path)
+        # Don't return True if it is a Global Attribute
+        if potential_vardir not in self.getncGlobalAttrs():
+            return re.search('^/[^/]+$', path) is not None
+        else:
+            return False
 
     def is_var_data(self, path):
         """ Test if path is a vaild path to Variable data representation
@@ -194,12 +199,27 @@ class NCFS(object):
         if re.search('^/[^/]+/[^/]+$', path) is not None:
             return not (self.is_var_data(path) or self.is_var_dimensions(path))
 
+    def is_global_attr(self, path):
+        """ Test if path is a valid path for a Dataset's Global Attributes"""
+        potential_glob_attr = self.get_global_attr_name(path)
+        log.debug("Checking if global attr: {}".format(potential_glob_attr))
+        # if potential_glob_attr in self.getncGlobalAttrs():
+        if potential_glob_attr not in self.getncVariables():
+            log.debug("Checking if global attr {} in Dataset".format(
+                      potential_glob_attr))
+            return re.search('^/[^/]+$', path) is not None
+        else:
+            return False
+
     def exists(self, path):
         """ Test if path exists """
         if (self.is_var_dir(path) or
                 self.is_var_data(path) or
                 self.is_var_dimensions(path)):
             return self.get_variable(path) is not None
+        elif self.is_global_attr(path):
+            log.debug("Exists method: Checking glob attr {}".format(path))
+            return self.get_global_attr(path) is not None
         elif self.is_var_attr(path):
             return self.get_var_attr(path) is not None
         elif path == '/':
@@ -219,14 +239,24 @@ class NCFS(object):
         """ Test if path corresponds to a file-like object """
         return not self.is_dir(path)
 
-    def get_varname(self, path):
+    @classmethod
+    def get_varname(cls, path):
         """
         Return NetCDF variable name, given its path.
         The path can be variable, attribute, data repr or dimensions path
         """
         return path.lstrip('/').split('/', 1)[0]
 
-    def get_attrname(self, path):
+    @classmethod
+    def get_global_attr_name(cls, path):
+        """
+        Return NetCDF global attribute name, given its path.
+        The path can be variable, attribute, data repr or dimensions path
+        """
+        return path.lstrip('/').split('/', 1)[0]
+
+    @classmethod
+    def get_attrname(cls, path):
         """ Return attribute name, given its path """
         return path.split('/')[-1]
 
@@ -234,6 +264,14 @@ class NCFS(object):
         """ Return NetCDF Variable object, given its path, or None """
         varname = self.get_varname(path)
         return self.dataset.variables.get(varname, None)
+
+    def get_global_attr(self, path):
+        """Return global attribute"""
+        global_attr_name = self.get_global_attr_name(path)
+        try:
+            return self.dataset.getncattr(global_attr_name)
+        except AttributeError:
+            return None
 
     def get_var_attr(self, path):
         """ Return NetCDF Attribute object, given its path, or None """
@@ -265,16 +303,30 @@ class NCFS(object):
         var = self.get_variable(path)
         var.setncattr(attrname, stripped_value)
 
+    def set_global_attr(self, path, value):
+        stripped_value = value.rstrip()  # \n should be stripped by default
+        glob_attrname = self.get_global_attr_name(path)
+        self.dataset.setncattr(glob_attrname, stripped_value)
+
     def del_var_attr(self, path):
         attrname = self.get_attrname(path)
         var = self.get_variable(path)
         var.delncattr(attrname)
+
+    def getncVariables(self):
+        """ Return the names of NetCDF variables in the file"""
+        return [item.encode('utf-8') for item in self.dataset.variables]
 
     def getncAttrs(self, path):
         """ Return name of NetCDF attributes, given variable's path """
         varname = self.get_varname(path)
         attrs = self.dataset.variables[varname].ncattrs()
         return [attr for attr in attrs]
+
+    def getncGlobalAttrs(self):
+        """ Return a list of the Dataset's global attributes"""
+        glob_attrs = self.dataset.ncattrs()
+        return [glob_attr.encode('utf-8') for glob_attr in glob_attrs]
 
     def rename_var_attr(self, old, new):
         """ Renames a variable attribute """
@@ -283,6 +335,12 @@ class NCFS(object):
         old_attr_name = self.get_attrname(old)
         new_attr_name = self.get_attrname(new)
         cur_var.renameAttribute(old_attr_name, new_attr_name)
+
+    def rename_global_attr(self, old, new):
+        """ Renames a global attribute """
+        old_attr_name = self.get_global_attr_name(old)
+        new_attr_name = self.get_global_attr_name(new)
+        self.dataset.renameAttribute(old_attr_name, new_attr_name)
 
     def rename_variable(self, old, new):
         """Renames a variale (i.e. a directory)"""
@@ -350,6 +408,10 @@ class NCFS(object):
         elif self.is_var_data(path):
             var = self.get_variable(path)
             statdict["st_size"] = self.vardata_repr.size(var)
+        elif self.is_global_attr(path):
+            # make sensible statdict entry for global attrs
+            global_attr = self.get_global_attr(path)
+            statdict["st_size"] = self.attr_repr.size(global_attr)
         elif self.is_var_dimensions(path):
             dimnames = self.get_var_dimnames(path)
             statdict["st_size"] = self.dimnames_repr.size(dimnames)
@@ -371,10 +433,13 @@ class NCFS(object):
         on this operation to work.
         """
         path = path.lstrip("/")
+        # If we are in the top-level directory of the mountpoint:
         if path == "":
-            # Return a list of netCDF variables
-            return (['.', '..'] + [item.encode('utf-8')
-                    for item in self.dataset.variables])
+            # Get a list of netCDF variables and the global attrs
+            all_variables = self.getncVariables()
+            global_attributes = self.getncGlobalAttrs()
+            return (['.', '..'] + all_variables + global_attributes)
+        # If we are in a variable directory
         elif path in self.dataset.variables:
             local_attrs = self.getncAttrs(path)
             return ['.', '..'] + local_attrs + ["DATA_REPR"] + ["DIMENSIONS"]
@@ -399,6 +464,9 @@ class NCFS(object):
         if self.is_var_attr(path):
             attr = self.get_var_attr(path)
             return self.attr_repr(attr)[offset:offset+size]
+        elif self.is_global_attr(path):
+            glob_attr = self.get_global_attr(path)
+            return self.attr_repr(glob_attr)[offset:offset+size]
         elif self.is_var_data(path):
             var = self.get_variable(path)
             return self.vardata_repr(var)[offset:offset+size]
@@ -411,6 +479,8 @@ class NCFS(object):
     def create(self, path, mode):
         if self.is_var_attr(path):
             self.set_var_attr(path, '')
+        elif self.is_global_attr(path):
+            self.set_global_attr(path, '')
         else:
             raise InternalError('create(): unexpected path %s' % path)
         return 0
@@ -432,6 +502,10 @@ class NCFS(object):
             attr = write_to_string(attr, buf, offset)
             self.set_var_attr(path, attr)
             return len(buf)
+        elif self.is_global_attr(path):
+            glob_attr = self.get_global_attr(path)
+            glob_attr = write_to_string(glob_attr, buf, offset)
+            self.set_global_attr(path, glob_attr)
         elif self.is_var_dimensions(path):
             old_dimnames = self.get_var_dimnames(path)
             # generate string representation of existing dimesion names
@@ -459,6 +533,8 @@ class NCFS(object):
         # Rename a variable
         elif self.is_var_dir(old):
             self.rename_variable(old, new)
+        elif self.is_global_attr(old):
+            self.rename_global_attr(old, new)
         # Otherwise, inform that this is not implemented.
         else:
             raise InternalError('rename(): not implemented for this op on %s'
