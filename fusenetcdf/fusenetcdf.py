@@ -336,6 +336,10 @@ class NCFS(object):
         var = self.get_variable(path)
         var.delncattr(attrname)
 
+    def del_global_attr(self, path):
+        glob_attr_name = self.get_global_attr_name(path)
+        self.dataset.delncattr(glob_attr_name)
+
     def getncVariables(self):
         """ Return the names of NetCDF variables in the file"""
         return [item.encode('utf-8') for item in self.dataset.variables]
@@ -529,6 +533,7 @@ class NCFS(object):
             glob_attr = self.get_global_attr(path)
             glob_attr = write_to_string(glob_attr, buf, offset)
             self.set_global_attr(path, glob_attr)
+            return len(buf)
         elif self.is_var_dimensions(path):
             old_dimnames = self.get_var_dimnames(path)
             # generate string representation of existing dimesion names
@@ -569,6 +574,8 @@ class NCFS(object):
             self.del_var_attr(path)
         elif self.is_var_dir(path):
             raise InternalError('unlink(): does not support deleting variable')
+        elif self.is_global_attr(path):
+            self.del_global_attr(path)
         else:
             raise InternalError('unlink(): unexpected path %s' % path)
         return 0
