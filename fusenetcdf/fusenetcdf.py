@@ -519,11 +519,13 @@ class NCFS(object):
             raise FuseOSError(EACCES)
 
     def open(self, path, flags):
+        self.dataset.sync()
         if not self.is_file(path):
             return ENOENT
         return 0
 
     def read(self, path, size, offset):
+        self.dataset.sync()
         if self.is_var_attr(path):
             attr = self.get_var_attr(path)
             return self.attr_repr(attr)[offset:offset+size]
@@ -597,7 +599,10 @@ class NCFS(object):
             log.debug("New array to append to VARIABLE {} is of TYPE: {},"
                       "Numpy DTYPE: {}".format(path, type(newdimvar),
                                                newdimvar.dtype))
-            dimvar[offset:offset+len(buf)] = newdimvar
+            log.debug("New numpy array to assign is: \n {}".format(newdimvar))
+            # dimvar[offset:offset+len(buf)] = newdimvar
+            dimvar[:] = newdimvar
+            self.dataset.sync()
             # Convert buffer into array, then pass in below.
             # self.set_dimension_variable(path, newdimvar)
             return len(buf)
@@ -619,6 +624,8 @@ class NCFS(object):
             old_val = self.get_var_attr(path)
             new_val = old_val.ljust(length)[0:length]
             var.setncattr(attr_name, new_val)
+        if self.is_dimension_variable(path):
+            pass 
         else:
             return 0
 
@@ -655,6 +662,10 @@ class NCFS(object):
 
     def close(self, fh):
         pass
+
+    def fsync(self, path):
+        self.dataset.sync()
+        return 0
 
 
 class NCFSOperations(Operations):
@@ -753,6 +764,9 @@ class NCFSOperations(Operations):
     def write_buf(self, path, buf, off, fh):
         return 0
 
+    def fsync(self, path, datasync, fh):
+        return self.ncfs.fsync(path)
+
     @classmethod
     def chmod(cls, path, mode):
         return 0
@@ -822,7 +836,7 @@ def main():
     # build the application
 
     # open file for reading and writing
-    dataset = ncpy.Dataset(cmdline.ncpath, 'r+')
+    dataset = ncpy.Dataset(cmdline.ncpath, 'r+', keepweakref=True)
     # create plugins for generating data, atribute, dimension representations
     vardata_repr = VardataAsFlatTextFiles(fmt='%f')
     attr_repr = AttributesAsTextFiles()
