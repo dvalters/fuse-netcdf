@@ -552,7 +552,7 @@ class NCFS(object):
             raise InternalError('write(): unexpected path %s' % path)
 
     @classmethod
-    def truncate(cls, path, length, fh=None):
+    def truncate(cls, path, length):
         """ Truncate a file that is being writtem to, i.e. when
         removing lines etc. Note that truncate is also called when
         the size of the file is being extended as well as shrunk"""
@@ -677,11 +677,9 @@ class NCFSOperations(Operations):
         log.debug("CREATING directory: {}".format(path))
         return self.ncfs.mkdir(path, mode)
 
-    @classmethod
-    def truncate(cls, path, length, fh):
+    def truncate(self, path, length):
         """Used when shortening files etc. (I.e. removing lines) """
-        return cls.ncfs.truncate(path, length, fh)
-        # return 0
+        return self.ncfs.truncate(path, length)
 
     def unlink(self, path):
         return self.ncfs.unlink(path)
