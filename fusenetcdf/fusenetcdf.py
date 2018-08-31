@@ -604,12 +604,15 @@ class NCFS(object):
         else:
             raise InternalError('write(): unexpected path %s' % path)
 
-    @classmethod
-    def truncate(cls, path, length):
+    def truncate(self, path, length):
         """ Truncate a file that is being writtem to, i.e. when
         removing lines etc. Note that truncate is also called when
         the size of the file is being extended as well as shrunk"""
         return 0
+        if self.is_global_attr(path):
+            old_val = self.get_global_attr(path)
+            new_val = old_val[0:length]
+            self.dataset.setncattr('')
 
     def rename(self, old, new):
         """

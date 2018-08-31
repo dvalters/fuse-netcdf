@@ -155,6 +155,9 @@ class TestWrite(unittest.TestCase):
         self.ncfs.unlink('/foovar/fooattr')
         self.assertTrue('fooattr' not in self.ds.variables['foovar'].ncattrs())
 
+    def test_truncating_attr(self):
+        self.ncfs.truncate('/attr1', 3)
+        self.assertEqual(self.ds.getncattr('attr1'), 'att')
 
 class TestGlobalAttrs(unittest.TestCase):
 
