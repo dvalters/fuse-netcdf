@@ -336,6 +336,10 @@ class NCFS(object):
         var = self.get_variable(path)
         var.delncattr(attrname)
 
+    def del_global_attr(self, path):
+        glob_attr_name = self.get_global_attr_name(path)
+        self.dataset.delncattr(glob_attr_name)
+
     def getncVariables(self):
         """ Return the names of NetCDF variables in the file"""
         return [item.encode('utf-8') for item in self.dataset.variables]
@@ -529,6 +533,7 @@ class NCFS(object):
             glob_attr = self.get_global_attr(path)
             glob_attr = write_to_string(glob_attr, buf, offset)
             self.set_global_attr(path, glob_attr)
+            return len(buf)
         elif self.is_var_dimensions(path):
             old_dimnames = self.get_var_dimnames(path)
             # generate string representation of existing dimesion names
@@ -545,6 +550,13 @@ class NCFS(object):
             return len(buf)
         else:
             raise InternalError('write(): unexpected path %s' % path)
+
+    @classmethod
+    def truncate(cls, path, length, fh=None):
+        """ Truncate a file that is being writtem to, i.e. when
+        removing lines etc. Note that truncate is also called when
+        the size of the file is being extended as well as shrunk"""
+        return 0
 
     def rename(self, old, new):
         """
@@ -569,6 +581,8 @@ class NCFS(object):
             self.del_var_attr(path)
         elif self.is_var_dir(path):
             raise InternalError('unlink(): does not support deleting variable')
+        elif self.is_global_attr(path):
+            self.del_global_attr(path)
         else:
             raise InternalError('unlink(): unexpected path %s' % path)
         return 0
@@ -663,13 +677,20 @@ class NCFSOperations(Operations):
         log.debug("CREATING directory: {}".format(path))
         return self.ncfs.mkdir(path, mode)
 
-    def truncate(self, path, offset):
-        return 0
+    @classmethod
+    def truncate(cls, path, length, fh):
+        """Used when shortening files etc. (I.e. removing lines) """
+        return cls.ncfs.truncate(path, length, fh)
+        # return 0
 
     def unlink(self, path):
         return self.ncfs.unlink(path)
 
     def write_buf(self, path, buf, off, fh):
+        return 0
+
+    @classmethod
+    def chmod(cls, path, mode):
         return 0
 
     """
