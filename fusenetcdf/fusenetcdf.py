@@ -688,7 +688,7 @@ class NCFSOperations(Operations):
 
     def write_buf(self, path, buf, off, fh):
         return 0
- 
+
     @classmethod
     def chmod(cls, path, mode):
         return 0
