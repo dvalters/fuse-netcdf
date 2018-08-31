@@ -234,6 +234,20 @@ class NCFS(object):
         else:
             return False
 
+    def is_dimension_variable(self, path):
+        """ Test if the path is a valid path for the Dataset dimension
+        variables. Uses the names the dimension variable from get_var_dimnames.
+        """
+        dimnames = self.get_var_dimnames(path)
+        varname = seflf.get_var_name(path)
+
+        dirname, basename = os.path.split(path)
+
+        if self.is_var_data(path) and (varname in dimnames):
+            return self.is_var_dir(dirname) and basename == 'DATA_REPR'
+        else:
+            return False
+
     def exists(self, path):
         """ Test if path exists """
         if (self.is_var_dir(path) or
@@ -382,7 +396,8 @@ class NCFS(object):
             self.dataset.renameDimension(old_var_name, new_var_name)
 
     def set_variable(self, newvariable):
-        """Creates a variable in the dataset if it does not exist"""
+        """Creates a variable in the dataset if it does not exist
+        TODO: More user control over type etc."""
         self.dataset.createVariable(newvariable, datatype='i')
 
     @classmethod
@@ -548,6 +563,8 @@ class NCFS(object):
                 # ignore invalid edit
                 pass
             return len(buf)
+        elif self.is_dimension_variable(path):
+            # Write consistent dimensions variable file
         else:
             raise InternalError('write(): unexpected path %s' % path)
 
