@@ -57,6 +57,18 @@ def write_to_string(string, buf, offset):
     string[offset:offset+len(buf)] = buf
     return ''.join(string)
 
+def write_to_array(path, buf, offset):
+    """ Makes a numpy array from list of values that can be
+    returned and assigned to overwrite/append existing variable
+    """
+    log.debug("Converting write buffer to numpy array.")
+    # Write consistent dimensions variable file
+    # handle buf input.    
+    # buf string has a \n charchter after every value.
+    list_of_vars = [float(val) for val in buf.splitlines()]
+    # TODO type could be other than float?
+    newdimvar = numpy.array(list_of_vars, dtype=float)
+    return newdimvar
 
 #
 # Data Representation plugins
@@ -239,7 +251,7 @@ class NCFS(object):
         variables. Uses the names the dimension variable from get_var_dimnames.
         """
         dimnames = self.get_var_dimnames(path)
-        varname = seflf.get_var_name(path)
+        varname = self.get_varname(path)
 
         dirname, basename = os.path.split(path)
 
@@ -400,6 +412,14 @@ class NCFS(object):
         TODO: More user control over type etc."""
         self.dataset.createVariable(newvariable, datatype='i')
 
+    def set_dimension_variable(self, path, values_buf):
+        """Update a dimension variable (lat/lon) given its path
+        and new value.
+
+        Notes: python-netcdf variables behave much like
+        """
+        pass
+
     @classmethod
     def makeIntoDir(cls, statdict):
         """Update the statdict if the item in the VFS should be
@@ -539,16 +559,20 @@ class NCFS(object):
         return 0
 
     def write(self, path, buf, offset, fh=0):
+        # Writing to a Variable Attribute
         if self.is_var_attr(path):
             attr = self.get_var_attr(path)
             attr = write_to_string(attr, buf, offset)
             self.set_var_attr(path, attr)
             return len(buf)
+        # Writing to a Global (Dataset) Attribute
         elif self.is_global_attr(path):
             glob_attr = self.get_global_attr(path)
             glob_attr = write_to_string(glob_attr, buf, offset)
             self.set_global_attr(path, glob_attr)
             return len(buf)
+        # Writing to Variable Dimension File (note: not Variable itself.)
+        # This is a separate DIMENSIONS file that gets create in the VFS.
         elif self.is_var_dimensions(path):
             old_dimnames = self.get_var_dimnames(path)
             # generate string representation of existing dimesion names
@@ -563,8 +587,19 @@ class NCFS(object):
                 # ignore invalid edit
                 pass
             return len(buf)
+        # Writing to a Variable file that is a dimension (i.e. lat/lon)
         elif self.is_dimension_variable(path):
-            # Write consistent dimensions variable file
+            log.debug("Path is a DIMENSION VARIABLE: {}".format(path))
+            log.debug("Write buffer is of type: {}".format(type(buf)))
+            dimvar = self.get_variable(path)
+            newdimvar = write_to_array(dimvar, buf, offset)
+            log.debug("New array to append to VARIABLE {} is of TYPE: {},"
+                      "Numpy DTYPE: {}".format(path, type(newdimvar),
+                                              newdimvar.dtype))
+            dimvar[offset:offset+len(buf)] = newdimvar
+            # Convert buffer into array, then pass in below.
+            # self.set_dimension_variable(path, newdimvar)
+            return len(buf)
         else:
             raise InternalError('write(): unexpected path %s' % path)
 
