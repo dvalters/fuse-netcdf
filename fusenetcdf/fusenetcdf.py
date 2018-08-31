@@ -676,9 +676,10 @@ class NCFSOperations(Operations):
         log.debug("CREATING directory: {}".format(path))
         return self.ncfs.mkdir(path, mode)
 
-    def truncate(self, path, length, fh):
+    @classmethod
+    def truncate(cls, path, length, fh):
         """Used when shortening files etc. (I.e. removing lines) """
-        return self.ncfs.truncate(path, length, fh)
+        return cls.ncfs.truncate(path, length, fh)
         # return 0
 
     def unlink(self, path):
@@ -686,8 +687,9 @@ class NCFSOperations(Operations):
 
     def write_buf(self, path, buf, off, fh):
         return 0
-
-    def chmod(self, path, mode):
+    
+    @classmethod
+    def chmod(cls, path, mode):
         return 0
 
     """
