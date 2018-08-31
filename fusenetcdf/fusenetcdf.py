@@ -732,7 +732,7 @@ class NCFSOperations(Operations):
         log.debug("CREATING directory: {}".format(path))
         return self.ncfs.mkdir(path, mode)
 
-    def truncate(self, path, length):
+    def truncate(self, path, length, fh=None):
         """Used when shortening files etc. (I.e. removing lines) """
         return self.ncfs.truncate(path, length)
 
