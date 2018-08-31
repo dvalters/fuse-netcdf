@@ -156,7 +156,6 @@ class TestWrite(unittest.TestCase):
         self.assertTrue('fooattr' not in self.ds.variables['foovar'].ncattrs())
 
 
-
 class TestGlobalAttrs(unittest.TestCase):
 
     def setUp(self):
