@@ -57,13 +57,14 @@ def write_to_string(string, buf, offset):
     string[offset:offset+len(buf)] = buf
     return ''.join(string)
 
+
 def write_to_array(path, buf, offset):
     """ Makes a numpy array from list of values that can be
     returned and assigned to overwrite/append existing variable
     """
     log.debug("Converting write buffer to numpy array.")
     # Write consistent dimensions variable file
-    # handle buf input.    
+    # handle buf input.
     # buf string has a \n charchter after every value.
     list_of_vars = [float(val) for val in buf.splitlines()]
     # TODO type could be other than float?
@@ -595,7 +596,7 @@ class NCFS(object):
             newdimvar = write_to_array(dimvar, buf, offset)
             log.debug("New array to append to VARIABLE {} is of TYPE: {},"
                       "Numpy DTYPE: {}".format(path, type(newdimvar),
-                                              newdimvar.dtype))
+                                               newdimvar.dtype))
             dimvar[offset:offset+len(buf)] = newdimvar
             # Convert buffer into array, then pass in below.
             # self.set_dimension_variable(path, newdimvar)
