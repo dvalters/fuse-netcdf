@@ -551,7 +551,8 @@ class NCFS(object):
         else:
             raise InternalError('write(): unexpected path %s' % path)
 
-    def truncate(self, path, length, fh=None):
+    @classmethod
+    def truncate(cls, path, length, fh=None):
         """ Truncate a file that is being writtem to, i.e. when
         removing lines etc. Note that truncate is also called when
         the size of the file is being extended as well as shrunk"""
@@ -687,7 +688,7 @@ class NCFSOperations(Operations):
 
     def write_buf(self, path, buf, off, fh):
         return 0
-    
+ 
     @classmethod
     def chmod(cls, path, mode):
         return 0
