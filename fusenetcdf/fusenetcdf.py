@@ -158,7 +158,7 @@ class NCFS(object):
         """ Test if path is a valid Variable directory path """
         potential_vardir = self.get_varname(path)
         # Don't return True if it is a Global Attribute
-        if potential_vardir not in self.getncGlobalAttrs():
+        if potential_vardir not in self.dataset.ncattrs():
             return re.search('^/[^/]+$', path) is not None
         else:
             return False
@@ -190,7 +190,7 @@ class NCFS(object):
         # number of dimensions should remain the same; if it is
         # different, print warning message and abort renaming.
         if len(old_names) != len(new_names):
-            log.warn("number of dimensions of a variable cannot change")
+            log.warning("number of dimensions of a variable cannot change")
             raise ValueError(
                     'old and new dimension list must have the same lenght')
         # Simulate renaming to check if it results in duplicates.
@@ -577,6 +577,8 @@ class NCFS(object):
         return 0
 
     def unlink(self, path):
+        if not self.exists(path):
+            return 0
         if self.is_var_attr(path):
             self.del_var_attr(path)
         elif self.is_var_dir(path):

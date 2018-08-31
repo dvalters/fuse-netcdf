@@ -155,9 +155,20 @@ class TestWrite(unittest.TestCase):
         self.ncfs.unlink('/foovar/fooattr')
         self.assertTrue('fooattr' not in self.ds.variables['foovar'].ncattrs())
 
+
+
+class TestGlobalAttrs(unittest.TestCase):
+
+    def setUp(self):
+        self.ds = create_test_dataset_1()
+        self.ncfs = NCFS(self.ds, None, None, None)
+
+    def tearDown(self):
+        self.ds.close()
+
     def test_creating_new_global_attr(self):
         self.ncfs.create('/attr2', mode=int('0100644', 8))
-        self.assertEqual(self.ds.getncattr('attr2'), '')
+        self.assertTrue('attr2' in self.ds.ncattrs())
 
     def test_writing_to_existing_global_attr(self):
         self.ncfs.write('/attr1', 'newattr1val', offset=0)
@@ -167,9 +178,24 @@ class TestWrite(unittest.TestCase):
         self.ncfs.write('/attr1', 'x', offset=0)
         self.assertEqual(self.ds.getncattr('attr1'), 'xttrval1')
 
+    def test_is_global_attr_on_existing_attr(self):
+        self.assertTrue(self.ncfs.is_global_attr('/attr1'))
+
+    def test_is_global_attr_on_nonexisting_attr(self):
+        self.assertTrue(self.ncfs.is_global_attr('/attr99'))
+
+    def test_get_global_attr(self):
+        self.assertTrue(self.ncfs.get_global_attr('/attr1') is not None)
+
+    def test_exist_on_global_attr(self):
+        self.assertTrue(self.ncfs.exists('/attr1'))
+
+    def test_is_var_dir_on_existing_global_attr(self):
+        self.assertFalse(self.ncfs.is_var_dir('/attr1'))
+
     def test_deleting_existing_global_attr(self):
         self.ncfs.unlink('/attr1')
-        self.assertTrue('attr1' not in self.ds.ncattrs())
+        self.assertFalse('attr1' in self.ds.ncattrs())
 
 
 class TestDimNamesAsTextFiles(unittest.TestCase):
