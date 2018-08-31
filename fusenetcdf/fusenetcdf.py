@@ -50,7 +50,7 @@ def memoize(function):
 def write_to_string(string, buf, offset):
     """
     Implements someting like string[offset:offset+len(buf)] = buf
-    (which is not be possible as strings are immutable).
+    (which is not possible as strings are immutable).
     """
     string = list(string)
     buf = list(buf)
@@ -608,11 +608,19 @@ class NCFS(object):
         """ Truncate a file that is being writtem to, i.e. when
         removing lines etc. Note that truncate is also called when
         the size of the file is being extended as well as shrunk"""
-        return 0
         if self.is_global_attr(path):
+            attr_name = self.get_global_attr_name(path)
             old_val = self.get_global_attr(path)
-            new_val = old_val[0:length]
-            self.dataset.setncattr('')
+            new_val = old_val.ljust(length)[0:length]
+            self.dataset.setncattr(attr_name, new_val)
+        if self.is_var_attr(path):
+            var = self.get_variable(path)
+            attr_name = self.get_attrname(path)
+            old_val = self.get_var_attr(path)
+            new_val = old_val.ljust(length)[0:length]
+            var.setncattr(attr_name, new_val)
+        else:
+            return 0
 
     def rename(self, old, new):
         """
