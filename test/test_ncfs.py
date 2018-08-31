@@ -125,6 +125,8 @@ def create_test_dataset_1():
     ds.createVariable('foovar', float, dimensions=('x', 'y'))
     v = ds.variables['foovar']
     v.setncattr('fooattr', 'abc')
+    # create global attribute
+    ds.setncattr('attr1', 'attrval1')
     return ds
 
 
@@ -151,9 +153,48 @@ class TestWrite(unittest.TestCase):
 
     def test_deleting_existing_attr(self):
         self.ncfs.unlink('/foovar/fooattr')
-        self.assertRaises(AttributeError,
-                          self.ds.variables['foovar'].getncattr,
-                          'foovar')
+        self.assertTrue('fooattr' not in self.ds.variables['foovar'].ncattrs())
+
+
+class TestGlobalAttrs(unittest.TestCase):
+
+    def setUp(self):
+        self.ds = create_test_dataset_1()
+        self.ncfs = NCFS(self.ds, None, None, None)
+
+    def tearDown(self):
+        self.ds.close()
+
+    def test_creating_new_global_attr(self):
+        self.ncfs.create('/attr2', mode=int('0100644', 8))
+        self.assertTrue('attr2' in self.ds.ncattrs())
+
+    def test_writing_to_existing_global_attr(self):
+        self.ncfs.write('/attr1', 'newattr1val', offset=0)
+        self.assertEqual(self.ds.getncattr('attr1'), 'newattr1val')
+
+    def test_writing_to_existing_global_attr_2(self):
+        self.ncfs.write('/attr1', 'x', offset=0)
+        self.assertEqual(self.ds.getncattr('attr1'), 'xttrval1')
+
+    def test_is_global_attr_on_existing_attr(self):
+        self.assertTrue(self.ncfs.is_global_attr('/attr1'))
+
+    def test_is_global_attr_on_nonexisting_attr(self):
+        self.assertTrue(self.ncfs.is_global_attr('/attr99'))
+
+    def test_get_global_attr(self):
+        self.assertTrue(self.ncfs.get_global_attr('/attr1') is not None)
+
+    def test_exist_on_global_attr(self):
+        self.assertTrue(self.ncfs.exists('/attr1'))
+
+    def test_is_var_dir_on_existing_global_attr(self):
+        self.assertFalse(self.ncfs.is_var_dir('/attr1'))
+
+    def test_deleting_existing_global_attr(self):
+        self.ncfs.unlink('/attr1')
+        self.assertFalse('attr1' in self.ds.ncattrs())
 
 
 class TestDimNamesAsTextFiles(unittest.TestCase):
