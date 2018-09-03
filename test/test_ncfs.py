@@ -338,7 +338,7 @@ class TestDimensions(unittest.TestCase):
         vardata_repr = VardataAsFlatTextFiles()
         dimnames_repr = DimNamesAsTextFiles()
         attr_repr = AttributesAsTextFiles()
-        ncfs = NCFS(self.ds, vardata_repr, dimnames_repr, dimnames_repr)
+        ncfs = NCFS(self.ds, vardata_repr, attr_repr, dimnames_repr)
         ncfs.write('/y/DATA_REPR', '7.0\n8.0\n9.0\n', 0)
         self.assertTrue(
                 (ncfs.get_variable('/y/DATA_REPR')[:] == [7., 8., 9.]).all())
