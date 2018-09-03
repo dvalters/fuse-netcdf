@@ -350,7 +350,7 @@ class TestDimensions(unittest.TestCase):
         vardata_repr = VardataAsFlatTextFiles()
         dimnames_repr = DimNamesAsTextFiles()
         attr_repr = AttributesAsTextFiles()
-        ncfs = NCFS(self.ds, vardata_repr, dimnames_repr, dimnames_repr)
+        ncfs = NCFS(self.ds, vardata_repr, attr_repr, dimnames_repr)
         ncfs.write('/y/DATA_REPR', '7.0\n8.0', 0)
         # write would result in data array smaller than original
         # - this edit should be ignored.
