@@ -5,6 +5,8 @@ from fusenetcdf.fusenetcdf import DimNamesAsTextFiles
 from fusenetcdf.fusenetcdf import VardataAsFlatTextFiles
 from fusenetcdf.fusenetcdf import AttributesAsTextFiles
 from fusenetcdf.fusenetcdf import write_to_string
+from fuse import FuseOSError
+import errno
 
 
 class FakeVariable(object):
@@ -356,11 +358,9 @@ class TestEditingVariables(unittest.TestCase):
         self.assertEqual(list(self.testvar[:]), expected)
 
     def test_editing_partial_text_of_dimension_variable(self):
-        self.ncfs.write('/y/DATA_REPR', '7.0\n8.0', 0)
-        # write would result in data array smaller than original
-        # - this edit should be ignored.
-        expected = [4., 5., 6.]
-        self.assertEqual(list(self.testvar[:]), expected)
+        with self.assertRaises(FuseOSError) as cm:
+            self.ncfs.write('/y/DATA_REPR', '7.0\n8.0', 0)
+        self.assertEqual(cm.exception.errno, errno.EACCES)
 
     @unittest.skip
     def test_2writes_followed_by_a_release(self):

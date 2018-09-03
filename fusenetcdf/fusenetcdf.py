@@ -19,7 +19,7 @@ import inspect
 import argparse
 import logging as log
 from fuse import FUSE, FuseOSError, Operations
-from errno import EACCES, ENOENT
+import errno
 
 
 class InternalError(Exception):
@@ -118,6 +118,7 @@ class VardataAsFlatTextFiles(object):
         # ignoring invalid edits?
         if new_data.size != variable[:].size:
             log.warning('write() ignored - would change data array size')
+            raise FuseOSError(errno.EACCES)
         else:
             variable[:] = new_data
 
@@ -475,7 +476,7 @@ class NCFS(object):
             return statdict
         elif not self.exists(path):
             log.debug('getattr: %s does not exist' % path)
-            raise FuseOSError(ENOENT)
+            raise FuseOSError(errno.ENOENT)
         elif self.is_var_dir(path):
             statdict = self.makeIntoDir(statdict)
             statdict["st_size"] = 4096
@@ -530,11 +531,11 @@ class NCFS(object):
             if mode == os.X_OK:
                 mode = os.R_OK
         if not os.access(path, mode):
-            raise FuseOSError(EACCES)
+            raise FuseOSError(errno.EACCES)
 
     def open(self, path, flags):
         if not self.is_file(path):
-            return ENOENT
+            return errno.ENOENT
         return 0
 
     def read(self, path, size, offset):
