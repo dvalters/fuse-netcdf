@@ -337,6 +337,8 @@ class TestDimensions(unittest.TestCase):
 
 class TestEditingVariables(unittest.TestCase):
 
+    __name__ = ''
+
     def setUp(self):
         self.ds = create_test_dataset_1()
         vardata_repr = VardataAsFlatTextFiles()
@@ -361,7 +363,7 @@ class TestEditingVariables(unittest.TestCase):
         self.assertEqual(list(self.testvar[:]), expected)
 
     @unittest.skip
-    def test_multiple_writes_followed_by_a_release(self):
+    def test_2writes_followed_by_a_release(self):
         self.ncfs.write('/y/DATA_REPR', '7.0\n8.0', 0)
         self.ncfs.write('/y/DATA_REPR', '\n9.0\n', 8)
         self.ncfs.release('/y/DATA_REPR')
