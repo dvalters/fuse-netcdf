@@ -334,25 +334,37 @@ class TestDimensions(unittest.TestCase):
         # was this edit ignored?
         self.assertEqual(self.ds.variables['foovar'].dimensions, (u'x', u'y'))
 
-    def test_editing_all_text_of_dimension_variable(self):
+
+class TestEditingVariables(unittest.TestCase):
+
+    def setUp(self):
+        self.ds = create_test_dataset_1()
         vardata_repr = VardataAsFlatTextFiles()
-        dimnames_repr = DimNamesAsTextFiles()
         attr_repr = AttributesAsTextFiles()
-        ncfs = NCFS(self.ds, vardata_repr, attr_repr, dimnames_repr)
-        ncfs.write('/y/DATA_REPR', '7.0\n8.0\n9.0\n', 0)
-        self.assertTrue(
-                (ncfs.get_variable('/y/DATA_REPR')[:] == [7., 8., 9.]).all())
-        self.assertEqual(
-                ncfs.read('/y/DATA_REPR', 27, 0),
-                '7.000000\n8.000000\n9.000000\n')
+        dimnames_repr = DimNamesAsTextFiles()
+        self.ncfs = NCFS(self.ds, vardata_repr, attr_repr, dimnames_repr)
+        self.testvar = self.ncfs.get_variable('/y/DATA_REPR')
+
+    def tearDown(self):
+        self.ds.close()
+
+    def test_editing_entire_text_of_dimension_variable(self):
+        self.ncfs.write('/y/DATA_REPR', '7.0\n8.0\n9.0\n', 0)
+        expected = [7., 8., 9.]
+        self.assertEqual(list(self.testvar[:]), expected)
 
     def test_editing_partial_text_of_dimension_variable(self):
-        vardata_repr = VardataAsFlatTextFiles()
-        dimnames_repr = DimNamesAsTextFiles()
-        attr_repr = AttributesAsTextFiles()
-        ncfs = NCFS(self.ds, vardata_repr, attr_repr, dimnames_repr)
-        ncfs.write('/y/DATA_REPR', '7.0\n8.0', 0)
+        self.ncfs.write('/y/DATA_REPR', '7.0\n8.0', 0)
         # write would result in data array smaller than original
         # - this edit should be ignored.
-        self.assertEqual(ncfs.read('/y/DATA_REPR', 27, 0),
-                         '4.000000\n5.000000\n6.000000\n')
+        expected = [4., 5., 6.]
+        self.assertEqual(list(self.testvar[:]), expected)
+
+    @unittest.skip
+    def test_multiple_writes_followed_by_a_release(self):
+        self.ncfs.write('/y/DATA_REPR', '7.0\n8.0', 0)
+        self.ncfs.write('/y/DATA_REPR', '\n9.0\n', 8)
+        self.ncfs.release('/y/DATA_REPR')
+        v = self.ncfs.get_variable('/y/DATA_REPR')
+        expected = [7., 8., 9.]
+        self.assertEqual(list(v[:]), expected)
