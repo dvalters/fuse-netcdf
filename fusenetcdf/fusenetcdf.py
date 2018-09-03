@@ -49,27 +49,14 @@ def memoize(function):
 
 def write_to_string(string, buf, offset):
     """
-    Implements someting like string[offset:offset+len(buf)] = buf
-    (which is not possible as strings are immutable).
+    Replace part of string with buf starting at offset;
+    String length is increased if needed.
     """
-    string = list(string)
-    buf = list(buf)
-    string[offset:offset+len(buf)] = buf
-    return ''.join(string)
+    part1 = string[0:offset]
+    part2 = buf
+    part3 = string[offset+len(buf):len(string)]
+    return part1 + part2 + part3
 
-
-def write_to_array(path, buf, offset):
-    """ Makes a numpy array from list of values that can be
-    returned and assigned to overwrite/append existing variable
-    """
-    log.debug("Converting write buffer to numpy array.")
-    # Write consistent dimensions variable file
-    # handle buf input.
-    # buf string has a \n charchter after every value.
-    list_of_vars = [float(val) for val in buf.splitlines()]
-    # TODO type could be other than float?
-    newdimvar = numpy.array(list_of_vars, dtype=float)
-    return newdimvar
 
 #
 # Data Representation plugins
@@ -91,6 +78,9 @@ class VardataAsBinaryFiles(object):
         data = variable[:].tobytes()
         return data
 
+    def write(self, variable, buf, offset):
+        raise NotImplementedError()
+
 
 class VardataAsFlatTextFiles(object):
 
@@ -101,11 +91,35 @@ class VardataAsFlatTextFiles(object):
         """ Return size (in bytes) of data representation """
         return len(self(variable))
 
-    @memoize
+#    @memoize
     def __call__(self, variable):
         """ Return Variable's data representation """
         return ''.join(numpy.char.mod(
             '{}\n'.format(self._fmt), variable[:].flatten()))
+
+    def write(self, variable, buf, offset):
+        """
+        Write buf into data array through its
+        string representation, starting at offset.
+        """
+        cur_repr = self(variable)
+        new_repr = write_to_string(cur_repr, buf, offset)
+        # Truncate the result so that there is no garbage at
+        # the end; TODO: this is a bad hack - we assume
+        # that writing is done in a single call to write(2);
+        # whether this is true will obviously depend on how
+        # writing is implemented in a particular editor/application.
+        new_repr = new_repr[0:offset+len(buf)]
+        var_type = variable[:].dtype
+        new_data = numpy.fromstring(new_repr, dtype=var_type, sep='\n')
+        # data size must not change, if after edit the size is different
+        # then ignore edit TODO: maybe better would be to show
+        # "Permission denied" error to the user instead of silently
+        # ignoring invalid edits?
+        if new_data.size != variable[:].size:
+            log.warning('write() ignored - would change data array size')
+        else:
+            variable[:] = new_data
 
 
 class AttributesAsTextFiles(object):
@@ -590,16 +604,8 @@ class NCFS(object):
             return len(buf)
         # Writing to a Variable file that is a dimension (i.e. lat/lon)
         elif self.is_dimension_variable(path):
-            log.debug("Path is a DIMENSION VARIABLE: {}".format(path))
-            log.debug("Write buffer is of type: {}".format(type(buf)))
             dimvar = self.get_variable(path)
-            newdimvar = write_to_array(dimvar, buf, offset)
-            log.debug("New array to append to VARIABLE {} is of TYPE: {},"
-                      "Numpy DTYPE: {}".format(path, type(newdimvar),
-                                               newdimvar.dtype))
-            dimvar[offset:offset+len(buf)] = newdimvar
-            # Convert buffer into array, then pass in below.
-            # self.set_dimension_variable(path, newdimvar)
+            self.vardata_repr.write(dimvar, buf, offset)
             return len(buf)
         else:
             raise InternalError('write(): unexpected path %s' % path)

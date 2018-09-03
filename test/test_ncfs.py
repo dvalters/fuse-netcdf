@@ -2,6 +2,9 @@ import unittest
 from fusenetcdf.fusenetcdf import NCFS
 from netCDF4 import Dataset
 from fusenetcdf.fusenetcdf import DimNamesAsTextFiles
+from fusenetcdf.fusenetcdf import VardataAsFlatTextFiles
+from fusenetcdf.fusenetcdf import AttributesAsTextFiles
+from fusenetcdf.fusenetcdf import write_to_string
 
 
 class FakeVariable(object):
@@ -18,6 +21,19 @@ class FakeDataset(object):
 
     def ncattrs(self):
         return {'attr1': 'val1', 'attr2': 'val2'}
+
+
+class TestWriteToString(unittest.TestCase):
+
+    def test_writing_without_expanding(self):
+        s1 = 'abcdefgh'
+        s2 = '123'
+        self.assertEqual(write_to_string(s1, s2, 1), 'a123efgh')
+
+    def test_writing_with_expanding(self):
+        s1 = 'abcdefgh'
+        s2 = '123'
+        self.assertEqual(write_to_string(s1, s2, 7), 'abcdefg123')
 
 
 class TestIsVarDir(unittest.TestCase):
@@ -120,7 +136,9 @@ def create_test_dataset_1():
     ds.createDimension('y', 3)
     # create a Dimension Variable (yes just one)
     ds.createVariable('x', int, dimensions=('x'))
+    ds.createVariable('y', float, dimensions=('y'))
     ds.variables['x'][:] = [1, 2, 3]
+    ds.variables['y'][:] = [4., 5., 6.]
     # create a Variable
     ds.createVariable('foovar', float, dimensions=('x', 'y'))
     v = ds.variables['foovar']
@@ -307,11 +325,34 @@ class TestDimensions(unittest.TestCase):
     def test_swapping_dimension_names(self):
         self.ncfs.write('/foovar/DIMENSIONS', 'y\nx\n', 0, 0)
         self.assertEqual(self.ds.variables['foovar'].dimensions, (u'y', u'x'))
-        # did the 'x' Dimension Variable name change to 'y' ?
-        self.assertFalse('x' in self.ds.variables)
-        self.assertTrue('y' in self.ds.variables)
+        # were dimension variables swapped as well?
+        self.assertTrue((self.ds.variables['y'][:] == [1, 2, 3]).all())
+        self.assertTrue((self.ds.variables['x'][:] == [4., 5., 6.]).all())
 
     def test_duplicate_names(self):
         self.ncfs.write('/foovar/DIMENSIONS', 'y\ny\n', 0, 0)
         # was this edit ignored?
         self.assertEqual(self.ds.variables['foovar'].dimensions, (u'x', u'y'))
+
+    def test_editing_all_text_of_dimension_variable(self):
+        vardata_repr = VardataAsFlatTextFiles()
+        dimnames_repr = DimNamesAsTextFiles()
+        attr_repr = AttributesAsTextFiles()
+        ncfs = NCFS(self.ds, vardata_repr, dimnames_repr, dimnames_repr)
+        ncfs.write('/y/DATA_REPR', '7.0\n8.0\n9.0\n', 0)
+        self.assertTrue(
+                (ncfs.get_variable('/y/DATA_REPR')[:] == [7., 8., 9.]).all())
+        self.assertEqual(
+                ncfs.read('/y/DATA_REPR', 27, 0),
+                '7.000000\n8.000000\n9.000000\n')
+
+    def test_editing_partial_text_of_dimension_variable(self):
+        vardata_repr = VardataAsFlatTextFiles()
+        dimnames_repr = DimNamesAsTextFiles()
+        attr_repr = AttributesAsTextFiles()
+        ncfs = NCFS(self.ds, vardata_repr, dimnames_repr, dimnames_repr)
+        ncfs.write('/y/DATA_REPR', '7.0\n8.0', 0)
+        # write would result in data array smaller than original
+        # - this edit should be ignored.
+        self.assertEqual(ncfs.read('/y/DATA_REPR', 27, 0),
+                         '4.000000\n5.000000\n6.000000\n')
