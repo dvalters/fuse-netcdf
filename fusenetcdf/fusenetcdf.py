@@ -58,6 +58,20 @@ def write_to_string(string, buf, offset):
     return part1 + part2 + part3
 
 
+def valid_name(name):
+    """
+    Check if name is a valid NetCDF name.
+    TODO: check what actually is a valid NetCDF name
+    and implement this properly using regular expression.
+    """
+    if name.startswith('.') or name.endswith('~'):
+        # this will take care of vim and emacs temp files
+        log.warn('{} is not a valid NetCDF name'.format(name))
+        return False
+    else:
+        return True
+
+
 #
 # Data Representation plugins
 #
@@ -365,13 +379,15 @@ class NCFS(object):
         """
         stripped_value = value.rstrip()  # \n should be stripped by default
         attrname = self.get_attrname(path)
-        var = self.get_variable(path)
-        var.setncattr(attrname, stripped_value)
+        if valid_name(attrname):
+            var = self.get_variable(path)
+            var.setncattr(attrname, stripped_value)
 
     def set_global_attr(self, path, value):
         stripped_value = value.rstrip()  # \n should be stripped by default
         glob_attrname = self.get_global_attr_name(path)
-        self.dataset.setncattr(glob_attrname, stripped_value)
+        if valid_name(glob_attrname):
+            self.dataset.setncattr(glob_attrname, stripped_value)
 
     def del_var_attr(self, path):
         attrname = self.get_attrname(path)
@@ -403,13 +419,15 @@ class NCFS(object):
         # print cur_var
         old_attr_name = self.get_attrname(old)
         new_attr_name = self.get_attrname(new)
-        cur_var.renameAttribute(old_attr_name, new_attr_name)
+        if valid_name(new_attr_name):
+            cur_var.renameAttribute(old_attr_name, new_attr_name)
 
     def rename_global_attr(self, old, new):
         """ Renames a global attribute """
         old_attr_name = self.get_global_attr_name(old)
         new_attr_name = self.get_global_attr_name(new)
-        self.dataset.renameAttribute(old_attr_name, new_attr_name)
+        if valid_name(new_attr_name):
+            self.dataset.renameAttribute(old_attr_name, new_attr_name)
 
     def rename_variable(self, old, new):
         """Renames a variale (i.e. a directory)"""

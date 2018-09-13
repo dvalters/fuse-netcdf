@@ -370,3 +370,29 @@ class TestEditingVariables(unittest.TestCase):
         v = self.ncfs.get_variable('/y/DATA_REPR')
         expected = [7., 8., 9.]
         self.assertEqual(list(v[:]), expected)
+
+
+class TestCreatingInvalidNames(unittest.TestCase):
+
+    def setUp(self):
+        self.ds = create_test_dataset_1()
+        self.ncfs = NCFS(self.ds, None, None, None)
+
+    def tearDown(self):
+        self.ds.close()
+
+    def test_dot_file_as_global_attr(self):
+        self.ncfs.create('/.foo', mode=int('0100644', 8))
+        self.assertFalse('.foo' in self.ds.ncattrs())
+
+    def test_emacs_tempfile_as_global_attr(self):
+        self.ncfs.create('/foo~', mode=int('0100644', 8))
+        self.assertFalse('foo~' in self.ds.ncattrs())
+
+    def test_dot_file_as_variable_attr(self):
+        self.ncfs.create('/foovar/.foo', mode=int('0100644', 8))
+        self.assertFalse(self.ncfs.exists('/foovar/.foo'))
+
+    def test_emacs_tempfile_as_variable_attr(self):
+        self.ncfs.create('/foovar/foo~', mode=int('0100644', 8))
+        self.assertFalse(self.ncfs.exists('/foovar/foo~'))
