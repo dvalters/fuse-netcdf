@@ -312,7 +312,8 @@ class TestDimensions(unittest.TestCase):
 
     def test_ignoring_invalid_edits(self):
         # if new list has wrong number of dimensions, ingore the change
-        self.ncfs.write('/foovar/DIMENSIONS', 'a\nb\nc\n', 0, 0)
+        self.assertRaises(FuseOSError, self.ncfs.write,
+                          '/foovar/DIMENSIONS', 'a\nb\nc\n', 0, 0)
         expected = (u'x', u'y')
         self.assertEqual(self.ds.variables['foovar'].dimensions, expected)
 
@@ -332,7 +333,8 @@ class TestDimensions(unittest.TestCase):
         self.assertTrue((self.ds.variables['x'][:] == [4., 5., 6.]).all())
 
     def test_duplicate_names(self):
-        self.ncfs.write('/foovar/DIMENSIONS', 'y\ny\n', 0, 0)
+        self.assertRaises(FuseOSError, self.ncfs.write,
+                          '/foovar/DIMENSIONS', 'y\ny\n', 0, 0)
         # was this edit ignored?
         self.assertEqual(self.ds.variables['foovar'].dimensions, (u'x', u'y'))
 
@@ -370,3 +372,29 @@ class TestEditingVariables(unittest.TestCase):
         v = self.ncfs.get_variable('/y/DATA_REPR')
         expected = [7., 8., 9.]
         self.assertEqual(list(v[:]), expected)
+
+
+class TestCreatingInvalidNames(unittest.TestCase):
+
+    def setUp(self):
+        self.ds = create_test_dataset_1()
+        self.ncfs = NCFS(self.ds, None, None, None)
+
+    def tearDown(self):
+        self.ds.close()
+
+    def test_dot_file_as_global_attr(self):
+        self.ncfs.create('/.foo', mode=int('0100644', 8))
+        self.assertFalse('.foo' in self.ds.ncattrs())
+
+    def test_emacs_tempfile_as_global_attr(self):
+        self.ncfs.create('/foo~', mode=int('0100644', 8))
+        self.assertFalse('foo~' in self.ds.ncattrs())
+
+    def test_dot_file_as_variable_attr(self):
+        self.ncfs.create('/foovar/.foo', mode=int('0100644', 8))
+        self.assertFalse(self.ncfs.exists('/foovar/.foo'))
+
+    def test_emacs_tempfile_as_variable_attr(self):
+        self.ncfs.create('/foovar/foo~', mode=int('0100644', 8))
+        self.assertFalse(self.ncfs.exists('/foovar/foo~'))

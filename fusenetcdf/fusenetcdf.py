@@ -58,6 +58,20 @@ def write_to_string(string, buf, offset):
     return part1 + part2 + part3
 
 
+def valid_name(name):
+    """
+    Check if name is a valid NetCDF name.
+    TODO: check what actually is a valid NetCDF name
+    and implement this properly using regular expression.
+    """
+    if name.startswith('.') or name.endswith('~'):
+        # this will take care of vim and emacs temp files
+        log.warn('{} is not a valid NetCDF name'.format(name))
+        return False
+    else:
+        return True
+
+
 #
 # Data Representation plugins
 #
@@ -113,9 +127,7 @@ class VardataAsFlatTextFiles(object):
         var_type = variable[:].dtype
         new_data = numpy.fromstring(new_repr, dtype=var_type, sep='\n')
         # data size must not change, if after edit the size is different
-        # then ignore edit TODO: maybe better would be to show
-        # "Permission denied" error to the user instead of silently
-        # ignoring invalid edits?
+        # then ignore edit and we present "Permission denied" error to the user
         if new_data.size != variable[:].size:
             log.warning('write() ignored - would change data array size')
             raise FuseOSError(errno.EACCES)
@@ -235,8 +247,9 @@ class NCFS(object):
             dimnames = [new if x == old else x for x in dimnames]
         # Check for duplicates; abort renaming if duplicates found
         if len(dimnames) != len(set(dimnames)):
+            log.warn('renaming dimensions would result in duplicates')
             raise ValueError(
-                    'renaming would result in duplicated dimension names')
+                    'invalid dimension names {}'.format(','.join(new_names)))
         # Renaming is safe - do it.
         for old in old_names:
             self.rename_dim_and_dimvar(old, 'RENAMING_' + old)
@@ -365,13 +378,15 @@ class NCFS(object):
         """
         stripped_value = value.rstrip()  # \n should be stripped by default
         attrname = self.get_attrname(path)
-        var = self.get_variable(path)
-        var.setncattr(attrname, stripped_value)
+        if valid_name(attrname):
+            var = self.get_variable(path)
+            var.setncattr(attrname, stripped_value)
 
     def set_global_attr(self, path, value):
         stripped_value = value.rstrip()  # \n should be stripped by default
         glob_attrname = self.get_global_attr_name(path)
-        self.dataset.setncattr(glob_attrname, stripped_value)
+        if valid_name(glob_attrname):
+            self.dataset.setncattr(glob_attrname, stripped_value)
 
     def del_var_attr(self, path):
         attrname = self.get_attrname(path)
@@ -403,13 +418,15 @@ class NCFS(object):
         # print cur_var
         old_attr_name = self.get_attrname(old)
         new_attr_name = self.get_attrname(new)
-        cur_var.renameAttribute(old_attr_name, new_attr_name)
+        if valid_name(new_attr_name):
+            cur_var.renameAttribute(old_attr_name, new_attr_name)
 
     def rename_global_attr(self, old, new):
         """ Renames a global attribute """
         old_attr_name = self.get_global_attr_name(old)
         new_attr_name = self.get_global_attr_name(new)
-        self.dataset.renameAttribute(old_attr_name, new_attr_name)
+        if valid_name(new_attr_name):
+            self.dataset.renameAttribute(old_attr_name, new_attr_name)
 
     def rename_variable(self, old, new):
         """Renames a variale (i.e. a directory)"""
@@ -600,8 +617,8 @@ class NCFS(object):
             try:
                 self.rename_dims_and_dimvars(old_dimnames, new_dimnames)
             except ValueError:
-                # ignore invalid edit
-                pass
+                # ignore invalid edit, show "permission denied" to user
+                raise FuseOSError(errno.EACCES)
             return len(buf)
         # Writing to a Variable file that is a dimension (i.e. lat/lon)
         elif self.is_dimension_variable(path):
@@ -824,7 +841,7 @@ def main():
         loglevel = log.INFO
     else:
         loglevel = log.DEBUG
-    log.basicConfig(format='%(message)s', level=loglevel)
+    log.basicConfig(format='%(levelname)s:%(message)s', level=loglevel)
 
     # build the application
 
