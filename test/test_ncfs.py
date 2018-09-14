@@ -312,7 +312,8 @@ class TestDimensions(unittest.TestCase):
 
     def test_ignoring_invalid_edits(self):
         # if new list has wrong number of dimensions, ingore the change
-        self.ncfs.write('/foovar/DIMENSIONS', 'a\nb\nc\n', 0, 0)
+        self.assertRaises(FuseOSError, self.ncfs.write,
+                          '/foovar/DIMENSIONS', 'a\nb\nc\n', 0, 0)
         expected = (u'x', u'y')
         self.assertEqual(self.ds.variables['foovar'].dimensions, expected)
 
@@ -332,7 +333,8 @@ class TestDimensions(unittest.TestCase):
         self.assertTrue((self.ds.variables['x'][:] == [4., 5., 6.]).all())
 
     def test_duplicate_names(self):
-        self.ncfs.write('/foovar/DIMENSIONS', 'y\ny\n', 0, 0)
+        self.assertRaises(FuseOSError, self.ncfs.write,
+                          '/foovar/DIMENSIONS', 'y\ny\n', 0, 0)
         # was this edit ignored?
         self.assertEqual(self.ds.variables['foovar'].dimensions, (u'x', u'y'))
 

@@ -127,9 +127,7 @@ class VardataAsFlatTextFiles(object):
         var_type = variable[:].dtype
         new_data = numpy.fromstring(new_repr, dtype=var_type, sep='\n')
         # data size must not change, if after edit the size is different
-        # then ignore edit TODO: maybe better would be to show
-        # "Permission denied" error to the user instead of silently
-        # ignoring invalid edits?
+        # then ignore edit and we present "Permission denied" error to the user
         if new_data.size != variable[:].size:
             log.warning('write() ignored - would change data array size')
             raise FuseOSError(errno.EACCES)
@@ -249,8 +247,9 @@ class NCFS(object):
             dimnames = [new if x == old else x for x in dimnames]
         # Check for duplicates; abort renaming if duplicates found
         if len(dimnames) != len(set(dimnames)):
+            log.warn('renaming dimensions would result in duplicates')
             raise ValueError(
-                    'renaming would result in duplicated dimension names')
+                    'invalid dimension names {}'.format(','.join(new_names)))
         # Renaming is safe - do it.
         for old in old_names:
             self.rename_dim_and_dimvar(old, 'RENAMING_' + old)
@@ -618,8 +617,8 @@ class NCFS(object):
             try:
                 self.rename_dims_and_dimvars(old_dimnames, new_dimnames)
             except ValueError:
-                # ignore invalid edit
-                pass
+                # ignore invalid edit, show "permission denied" to user
+                raise FuseOSError(errno.EACCES)
             return len(buf)
         # Writing to a Variable file that is a dimension (i.e. lat/lon)
         elif self.is_dimension_variable(path):
@@ -842,7 +841,7 @@ def main():
         loglevel = log.INFO
     else:
         loglevel = log.DEBUG
-    log.basicConfig(format='%(message)s', level=loglevel)
+    log.basicConfig(format='%(levelname)s:%(message)s', level=loglevel)
 
     # build the application
 
