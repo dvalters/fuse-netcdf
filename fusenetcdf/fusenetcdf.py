@@ -163,7 +163,7 @@ class DimNamesAsTextFiles(object):
 
     def encode(self, dimnames):
         """ Return text representation of a list of dimension names"""
-        s = self._sep.join(dimnames)
+        s = str(self._sep.join(dimnames))
         if not s or s[-1] == '\n':
             return s
         return s + '\n'
