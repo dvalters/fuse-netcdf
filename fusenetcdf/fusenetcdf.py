@@ -812,7 +812,7 @@ def main():
 
     parser = argparse.ArgumentParser(
             description='Mount NetCDF filesystem',
-            prog='fusenetcdf')
+            prog='ncfs')
 
     parser.add_argument(
             dest='ncpath',
